@@ -6,9 +6,9 @@ Os vestidos da Iraides não têm exposição para o público final. Hoje quem co
 
 ## 2. QUEM USA
 
-**Iraides** — entra no sistema para cadastrar um vestido novo. Ela sobe a foto da peça, e o sistema remove o fundo da imagem e gera a descrição do produto automaticamente. O vestido aparece no site. Ela sai do sistema com o vestido publicado.
+**Iraides** — entra no sistema para cadastrar um vestido novo. Ela sobe a foto da peça, informa se o vestido está disponível e cola o link do post do Instagram. O sistema remove o fundo da imagem e gera a descrição automaticamente. O vestido aparece no site. Ela sai do sistema com o vestido publicado.
 
-**Cliente final** — vê o vestido no Instagram da Iraides, clica no link da bio e entra no site. Ela vê só aquele vestido, digita o CEP para saber o frete e clica em Comprar. Cai no WhatsApp da Iraides com uma mensagem pronta contendo o nome do produto, o valor total e a chave PIX. Ela paga, envia o comprovante e recebe o vestido em casa.
+**Cliente final** — vê um vestido no Instagram da Iraides, clica no link da bio e entra no site. Na página vê o vestido que a interessou, o post original do Instagram incorporado (prova social), um selo "Disponível" e um link "Ver outros modelos" que leva à lista com todos os vestidos à venda. Ela digita o CEP para saber o frete e clica em Comprar. Cai no WhatsApp da Iraides com uma mensagem pronta contendo o nome do produto, o valor total e a chave PIX. Ela paga, envia o comprovante e recebe o vestido em casa.
 
 ## 3. O QUE A PESSOA FAZ HOJE, SEM O MEU SISTEMA
 
@@ -31,7 +31,6 @@ Dada a foto de um vestido tirada no cabide, a inteligência artificial remove o 
 - Cálculo de frete por API do Uber (frete fixo resolve por enquanto)
 - Modelo virtual com IA
 - Painel de relatórios e gráficos
-- Página com outras opções no detalhe do produto (cada link da bio leva direto ao vestido do post)
 - Entregas para outras cidades
 
 ## 7. CASOS DE BORDA
@@ -41,6 +40,8 @@ Dada a foto de um vestido tirada no cabide, a inteligência artificial remove o 
 - **Descrição em branco (após a IA ser implementada):** o sistema não publica o produto sem descrição e pede para o usuário digitar manualmente.
 - **Dois toques rápidos no botão de Comprar:** o sistema desabilita o botão após o primeiro clique e só redireciona ao WhatsApp uma vez.
 - **Cliente digita um CEP inválido:** o sistema avisa "CEP não encontrado" e pede para digitar novamente, sem quebrar a página.
+- **Nenhum vestido cadastrado ainda:** a página "Ver outros modelos" exibe a mensagem "Nenhum vestido disponível no momento".
+- **Cliente acessa um vestido marcado como indisponível:** o botão de comprar é substituído pelo texto "Indisponível no momento".
 
 ---
 

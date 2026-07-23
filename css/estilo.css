@@ -65,6 +65,12 @@ body {
   color: var(--accent);
 }
 
+.logo-icon {
+  vertical-align: middle;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
 .nav-toggle {
   background: none;
   border: none;

@@ -1,11 +1,11 @@
 // ── DADOS DE EXEMPLO ──
 
 const vestidos = [
-  { id: 'v1', nome: 'Vestido Florido Azul', descricao: 'Curto, manga curta, tecido leve. Ideal para passeios diurnos de fim de semana.', preco: 8900, disponivel: true },
-  { id: 'v2', nome: 'Vestido Linho Bege', descricao: 'Midi, alça fina, tecido de linho. Fresco e elegante para dias quentes.', preco: 12000, disponivel: true },
-  { id: 'v3', nome: 'Vestido Estampado Vermelho', descricao: 'Longo, estampa floral, decote V. Perfeito para eventos durante o dia.', preco: 9500, disponivel: true },
-  { id: 'v4', nome: 'Vestido Midi Preto', descricao: 'Midi, gola redonda, tecido acetinado. Básico versátil do armário.', preco: 11000, disponivel: true },
-  { id: 'v5', nome: 'Vestido Cropped Verde', descricao: 'Curto, modelo cropped, tecido viscolycra. Moderno e confortável.', preco: 7500, disponivel: false },
+  { id: 'v1', nome: 'Vestido Florido Azul', descricao: 'Curto, manga curta, tecido leve. Ideal para passeios diurnos de fim de semana.', preco: 8900, disponivel: true, cor: '#3a6b8c' },
+  { id: 'v2', nome: 'Vestido Linho Bege', descricao: 'Midi, alça fina, tecido de linho. Fresco e elegante para dias quentes.', preco: 12000, disponivel: true, cor: '#c4a87c' },
+  { id: 'v3', nome: 'Vestido Estampado Vermelho', descricao: 'Longo, estampa floral, decote V. Perfeito para eventos durante o dia.', preco: 9500, disponivel: true, cor: '#a83232' },
+  { id: 'v4', nome: 'Vestido Midi Preto', descricao: 'Midi, gola redonda, tecido acetinado. Básico versátil do armário.', preco: 11000, disponivel: true, cor: '#2a2a2a' },
+  { id: 'v5', nome: 'Vestido Cropped Verde', descricao: 'Curto, modelo cropped, tecido viscolycra. Moderno e confortável.', preco: 7500, disponivel: false, cor: '#4a7a4a' },
 ];
 
 const pedidos = [
@@ -92,6 +92,18 @@ function formatarData(iso) {
   const horas = String(d.getHours()).padStart(2, '0');
   const min = String(d.getMinutes()).padStart(2, '0');
   return `${dia}/${mes}/${ano} às ${horas}:${min}`;
+}
+
+function gerarImagemVestido(nome, cor) {
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="533" viewBox="0 0 400 533">' +
+    '<rect width="400" height="533" fill="' + cor + '"/>' +
+    '<g transform="translate(200,190)">' +
+    '<path d="M-35-50C-35-75-18-95 0-95c18 0 35 20 35 45l18 50-25-15-13 60h-30l-13-60-25 15 18-50z" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>' +
+    '<circle cx="0" cy="-80" r="7" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>' +
+    '</g>' +
+    '<text x="200" y="470" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-family="sans-serif" font-size="14">' + nome + '</text>' +
+    '</svg>';
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
 }
 
 function statusLabel(s) {

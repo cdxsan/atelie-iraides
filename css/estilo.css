@@ -401,6 +401,7 @@ h2 {
   justify-content: center;
   color: var(--text3);
   font-size: 13px;
+  overflow: hidden;
 }
 
 .produto-card-body {
@@ -432,12 +433,9 @@ h2 {
   aspect-ratio: 3/4;
   background: var(--surface2);
   border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text3);
-  font-size: 14px;
   margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
 }
 
 .produto-info h1 {

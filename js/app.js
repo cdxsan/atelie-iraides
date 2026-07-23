@@ -115,6 +115,20 @@ function mostrarAviso(dia) {
   }
 }
 
+// ── NAVEGAÇÃO MOBILE ──
+
+function toggleNav() {
+  document.querySelector('.top-bar').classList.toggle('nav-aberto');
+}
+
+document.addEventListener('click', function(e) {
+  var link = e.target.closest('.nav a');
+  if (link) {
+    var bar = document.querySelector('.top-bar');
+    if (bar) bar.classList.remove('nav-aberto');
+  }
+});
+
 // ── SIMULAÇÃO DE LOGIN ──
 
 function simularLogin() {

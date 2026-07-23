@@ -1,11 +1,11 @@
 // ── DADOS DE EXEMPLO ──
 
 const vestidos = [
-  { id: 'v1', nome: 'Vestido Florido Azul', descricao: 'Curto, manga curta, tecido leve. Ideal para passeios diurnos de fim de semana.', preco: 8900, disponivel: true, cor: '#3a6b8c', lock: 10 },
-  { id: 'v2', nome: 'Vestido Linho Bege', descricao: 'Midi, alça fina, tecido de linho. Fresco e elegante para dias quentes.', preco: 12000, disponivel: true, cor: '#c4a87c', lock: 11 },
-  { id: 'v3', nome: 'Vestido Estampado Vermelho', descricao: 'Longo, estampa floral, decote V. Perfeito para eventos durante o dia.', preco: 9500, disponivel: true, cor: '#a83232', lock: 12 },
-  { id: 'v4', nome: 'Vestido Midi Preto', descricao: 'Midi, gola redonda, tecido acetinado. Básico versátil do armário.', preco: 11000, disponivel: true, cor: '#2a2a2a', lock: 13 },
-  { id: 'v5', nome: 'Vestido Cropped Verde', descricao: 'Curto, modelo cropped, tecido viscolycra. Moderno e confortável.', preco: 7500, disponivel: false, cor: '#4a7a4a', lock: 14 },
+  { id: 'v1', nome: 'Vestido Florido Azul', descricao: 'Curto, manga curta, tecido leve. Ideal para passeios diurnos de fim de semana.', preco: 8900, disponivel: true, cor: '#3a6b8c' },
+  { id: 'v2', nome: 'Vestido Linho Bege', descricao: 'Midi, alça fina, tecido de linho. Fresco e elegante para dias quentes.', preco: 12000, disponivel: true, cor: '#c4a87c' },
+  { id: 'v3', nome: 'Vestido Estampado Vermelho', descricao: 'Longo, estampa floral, decote V. Perfeito para eventos durante o dia.', preco: 9500, disponivel: true, cor: '#a83232' },
+  { id: 'v4', nome: 'Vestido Midi Preto', descricao: 'Midi, gola redonda, tecido acetinado. Básico versátil do armário.', preco: 11000, disponivel: true, cor: '#2a2a2a' },
+  { id: 'v5', nome: 'Vestido Cropped Verde', descricao: 'Curto, modelo cropped, tecido viscolycra. Moderno e confortável.', preco: 7500, disponivel: false, cor: '#4a7a4a' },
 ];
 
 const pedidos = [
@@ -94,8 +94,39 @@ function formatarData(iso) {
   return `${dia}/${mes}/${ano} às ${horas}:${min}`;
 }
 
-function gerarImagemVestido(nome, cor, lockId) {
-  return 'https://loremflickr.com/400/533/dress?lock=' + lockId;
+function gerarImagemVestido(nome, cor) {
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="533" viewBox="0 0 400 533">' +
+    '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + cor + '"/><stop offset="100%" stop-color="' + escurecer(cor, 30) + '"/></linearGradient></defs>' +
+    '<rect width="400" height="533" fill="url(#g)"/>' +
+    '<g transform="translate(200,210)">' +
+    // Hanger hook
+    '<path d="M-8-85 Q0-105 8-85" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2.5" stroke-linecap="round"/>' +
+    '<path d="M-2-87 L-2-65" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>' +
+    // Shoulders and bodice
+    '<path d="M-60 10 Q-30-10 0-15 Q30-10 60 10 L70 60 Q60 75 45 80 Q20 90 0 95 Q-20 90-45 80 Q-60 75-70 60 Z" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>' +
+    // Neckline
+    '<path d="M-50 15 Q0 35 50 15" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>' +
+    // Waist
+    '<line x1="-55" y1="85" x2="55" y2="85" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>' +
+    // Skirt - A-line
+    '<path d="M-45 85 Q-60 120-80 180 Q-110 260-120 330 Q-80 345 0 350 Q80 345 120 330 Q110 260 80 180 Q60 120 45 85 Z" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>' +
+    // Center seam
+    '<line x1="0" y1="15" x2="0" y2="340" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>' +
+    // Sleeves
+    '<path d="M-60 15 Q-85 30-90 55 Q-75 55-65 45 Q-55 35-50 25" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>' +
+    '<path d="M60 15 Q85 30 90 55 Q75 55 65 45 Q55 35 50 25" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>' +
+    '</g>' +
+    '<text x="200" y="485" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-family="sans-serif" font-size="13">' + nome + '</text>' +
+    '</svg>';
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+
+function escurecer(cor, quantia) {
+  var num = parseInt(cor.replace('#', ''), 16);
+  var r = Math.max(0, (num >> 16) - quantia);
+  var g = Math.max(0, ((num >> 8) & 0xFF) - quantia);
+  var b = Math.max(0, (num & 0xFF) - quantia);
+  return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
 }
 
 function statusLabel(s) {

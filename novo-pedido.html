@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Novo Pedido — Ateliê Iraides</title>
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <a href="index.html" class="top-bar-logo">Ateliê <span>Iraides</span></a>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="catalogo.html">Catálogo</a>
+        <span class="nav-divider"></span>
+        <span class="nav-label">Protegido</span>
+        <a href="pedidos.html">Pedidos</a>
+        <a href="novo-pedido.html" class="ativo">Novo Pedido</a>
+        <span class="nav-divider"></span>
+        <a href="#" class="entrar" id="nav-entrar">Sair</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main">
+    <h2>Novo Pedido</h2>
+
+    <!-- ── COLAR TEXTO DO WHATSAPP (IA FUTURA) ── -->
+    <div class="card" style="border-color:rgba(255,107,107,0.3);">
+      <label class="form-label" style="font-size:14px;">
+        Colar texto do WhatsApp
+        <span style="color:var(--text3);font-weight:400;"> (IA extrai automaticamente no dia 9)</span>
+      </label>
+      <textarea class="form-input" id="texto-bruto" placeholder="Cole aqui o texto da conversa do WhatsApp com a cliente...">Ana Beatriz Silva - (62) 99999-1001 - Rua das Flores, 123, Centro, Aparecida de Goiânia - GO. Quer 1 Vestido Florido Azul por R$ 89,00. Frete R$ 12,00. Total R$ 101,00.</textarea>
+      <button class="btn btn-outline btn-small" style="margin-top:8px;" onclick="extrairIA()">Extrair com IA</button>
+    </div>
+
+    <!-- ── FORMULÁRIO ── -->
+    <div class="card">
+      <div class="form-group">
+        <label class="form-label">Nome do cliente</label>
+        <input class="form-input" id="cliente-nome" value="Ana Beatriz Silva">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">WhatsApp</label>
+        <input class="form-input" id="cliente-whatsapp" value="(62) 99999-1001">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Endereço de entrega</label>
+        <textarea class="form-input" id="cliente-endereco" style="min-height:60px;">Rua das Flores, 123, Centro, Aparecida de Goiânia - GO</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Frete (em centavos — ex: 1200 = R$ 12,00)</label>
+        <input class="form-input" id="frete-valor" type="number" value="1200">
+      </div>
+    </div>
+
+    <!-- ── ITENS DO PEDIDO ── -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <label class="form-label" style="margin:0;">Itens do pedido</label>
+        <button class="btn btn-small btn-outline" onclick="mostrarAviso(6)" style="width:auto;">+ Adicionar</button>
+      </div>
+
+      <div id="itens-pedido">
+        <!-- Item 1 -->
+        <div class="pedido-item">
+          <div>
+            <div style="font-size:14px;color:#fff;font-weight:600;">Vestido Florido Azul</div>
+            <div style="font-size:12px;color:var(--text3);">1 unidade x R$ 89,00</div>
+          </div>
+          <div style="font-size:15px;color:var(--accent);font-weight:700;">R$ 89,00</div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;display:flex;justify-content:space-between;">
+        <span style="color:var(--text2);font-weight:600;">Total com frete</span>
+        <span style="color:var(--accent);font-size:18px;font-weight:700;" id="total-exemplo">R$ 101,00</span>
+      </div>
+    </div>
+
+    <!-- ── SALVAR ── -->
+    <button class="btn btn-primary" onclick="mostrarAviso(6)">Salvar Pedido</button>
+    <a href="pedidos.html" class="btn btn-outline" style="margin-top:8px;">Cancelar</a>
+  </main>
+
+  <div id="aviso-futuro" class="aviso-futuro"></div>
+
+  <script src="js/app.js"></script>
+  <script>
+    (function() {
+      protegerPagina();
+
+      var entrar = document.getElementById('nav-entrar');
+      entrar.onclick = function(e) { e.preventDefault(); simularLogout(); };
+    })();
+
+    function extrairIA() {
+      // Simula a extração: preenche os campos com dados de exemplo
+      document.getElementById('cliente-nome').value = 'Ana Beatriz Silva';
+      document.getElementById('cliente-whatsapp').value = '(62) 99999-1001';
+      document.getElementById('cliente-endereco').value = 'Rua das Flores, 123, Centro, Aparecida de Goiânia - GO';
+      document.getElementById('frete-valor').value = '1200';
+      mostrarAviso(9);
+    }
+  </script>
+</body>
+</html>

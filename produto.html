@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Vestido — Ateliê Iraides</title>
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <a href="index.html" class="top-bar-logo">Ateliê <span>Iraides</span></a>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="catalogo.html">Catálogo</a>
+        <span class="nav-divider"></span>
+        <span class="nav-label">Protegido</span>
+        <a href="pedidos.html">Pedidos</a>
+        <a href="novo-pedido.html">Novo Pedido</a>
+        <span class="nav-divider"></span>
+        <a href="login.html" class="entrar" id="nav-entrar">Entrar</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main">
+    <div id="produto-conteudo">
+      <!-- preenchido por js -->
+    </div>
+  </main>
+
+  <div id="aviso-futuro" class="aviso-futuro"></div>
+
+  <script src="js/app.js"></script>
+  <script>
+    (function() {
+      var entrar = document.getElementById('nav-entrar');
+      if (estaLogado()) {
+        entrar.textContent = 'Sair';
+        entrar.href = '#';
+        entrar.onclick = function(e) { e.preventDefault(); simularLogout(); };
+      }
+
+      var params = new URLSearchParams(window.location.search);
+      var id = params.get('id');
+      var produto = vestidos.find(function(v) { return v.id === id; });
+
+      if (!produto) {
+        document.getElementById('produto-conteudo').innerHTML =
+          '<p style="color:#808080;">Vestido não encontrado.</p>' +
+          '<a href="catalogo.html" class="btn btn-outline">Ver Catálogo</a>';
+        return;
+      }
+
+      var html = '';
+
+      // Foto placeholder
+      html += '<div class="produto-detalhe-img">📷 ' + produto.nome + '</div>';
+
+      // Info
+      html += '<div class="produto-info">';
+      html += '<h1>' + produto.nome + '</h1>';
+
+      if (produto.disponivel) {
+        html += '<div class="preco-grande">' + formatarCentavos(produto.preco) + '</div>';
+      } else {
+        html += '<div style="color:#666;font-size:15px;margin-bottom:12px;">Indisponível no momento</div>';
+      }
+
+      html += '<p class="descricao">' + produto.descricao + '</p>';
+      html += '</div>';
+
+      // Frete
+      html += '<div class="frete-box">';
+      html += '<label>Calcular frete</label>';
+      html += '<div class="frete-input-group">';
+      html += '<input type="text" id="input-cep" placeholder="Digite seu CEP" maxlength="9" inputmode="numeric" value="74900-000">';
+      html += '<button onclick="calcularFrete()">OK</button>';
+      html += '</div>';
+      html += '<div class="frete-resultado" id="frete-resultado">Frete: <strong>R$ 12,00</strong></div>';
+      html += '</div>';
+
+      // Instagram embed placeholder (prova social)
+      html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;">';
+      html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">';
+      html += '<div style="width:36px;height:36px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:16px;">📸</div>';
+      html += '<div><div style="font-size:14px;font-weight:600;color:#fff;">@iraides.atelie</div><div style="font-size:12px;color:var(--text3);">Ver no Instagram</div></div>';
+      html += '</div>';
+      html += '<div style="background:var(--surface2);border-radius:var(--radius);padding:24px;text-align:center;color:var(--text3);font-size:14px;">';
+      html += '📷 Post do Instagram incorporado aqui';
+      html += '</div>';
+      html += '</div>';
+
+      // Botão comprar
+      if (produto.disponivel) {
+        html += '<button class="btn btn-primary" onclick="comprar(\'' + produto.id + '\')">Comprar via WhatsApp</button>';
+      } else {
+        html += '<button class="btn btn-primary" disabled>Indisponível</button>';
+      }
+
+      // Link de volta
+      html += '<a href="catalogo.html" class="btn btn-outline" style="margin-top:8px;">Ver outros modelos</a>';
+
+      document.getElementById('produto-conteudo').innerHTML = html;
+    })();
+
+    function calcularFrete() {
+      var el = document.getElementById('frete-resultado');
+      el.classList.add('visivel');
+    }
+
+    function comprar(id) {
+      var produto = vestidos.find(function(v) { return v.id === id; });
+      if (!produto) return;
+      var frete = 1200;
+      var total = produto.preco + frete;
+      var texto = 'Olá! Quero comprar o ' + produto.nome +
+        '. Valor: ' + formatarCentavos(produto.preco) +
+        ' + frete ' + formatarCentavos(frete) +
+        ' = Total ' + formatarCentavos(total) + '.';
+      var url = 'https://wa.me/5562999999999?text=' + encodeURIComponent(texto);
+      window.open(url, '_blank');
+    }
+  </script>
+</body>
+</html>

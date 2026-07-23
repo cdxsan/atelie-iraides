@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Entrar — Ateliê Iraides</title>
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <a href="index.html" class="top-bar-logo">Ateliê <span>Iraides</span></a>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="catalogo.html">Catálogo</a>
+        <span class="nav-divider"></span>
+        <span class="nav-label">Protegido</span>
+        <a href="pedidos.html">Pedidos</a>
+        <a href="novo-pedido.html">Novo Pedido</a>
+        <span class="nav-divider"></span>
+        <a href="login.html" class="entrar ativo" id="nav-entrar">Entrar</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="login-box">
+      <h1>Entrar</h1>
+
+      <div class="form-group">
+        <label class="form-label">E-mail</label>
+        <input class="form-input" type="email" id="email" placeholder="iraides@email.com" value="iraides@email.com">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Senha</label>
+        <input class="form-input" type="password" id="senha" placeholder="••••••••" value="123456">
+      </div>
+
+      <button class="btn btn-primary" onclick="simularLogin()">Entrar</button>
+
+      <p class="login-simulacao">
+        Login real com Supabase estará disponível no dia 5.<br>
+        Por enquanto, clique em <strong>Entrar</strong> para simular.
+      </p>
+    </div>
+  </main>
+
+  <div id="aviso-futuro" class="aviso-futuro"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Meus Pedidos — Ateliê Iraides</title>
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <a href="index.html" class="top-bar-logo">Ateliê <span>Iraides</span></a>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="catalogo.html">Catálogo</a>
+        <span class="nav-divider"></span>
+        <span class="nav-label">Protegido</span>
+        <a href="pedidos.html" class="ativo">Pedidos</a>
+        <a href="novo-pedido.html">Novo Pedido</a>
+        <span class="nav-divider"></span>
+        <a href="#" class="entrar" id="nav-entrar">Sair</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="section-header">
+      <h2>Meus Pedidos</h2>
+      <a href="novo-pedido.html" class="btn btn-primary btn-small">+ Novo</a>
+    </div>
+
+    <div id="lista-pedidos">
+      <!-- preenchido por js -->
+    </div>
+  </main>
+
+  <div id="aviso-futuro" class="aviso-futuro"></div>
+
+  <script src="js/app.js"></script>
+  <script>
+    (function() {
+      protegerPagina();
+
+      var entrar = document.getElementById('nav-entrar');
+      entrar.onclick = function(e) { e.preventDefault(); simularLogout(); };
+
+      // Ordena do mais novo para o mais antigo
+      var ordenados = pedidos.slice().sort(function(a, b) {
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+
+      var container = document.getElementById('lista-pedidos');
+
+      ordenados.forEach(function(p) {
+        var card = document.createElement('div');
+        card.className = 'card pedido-card';
+
+        // Cabeçalho
+        var header = document.createElement('div');
+        header.className = 'card-header';
+
+        var info = document.createElement('div');
+        var nome = document.createElement('div');
+        nome.className = 'pedido-cliente';
+        nome.textContent = p.cliente_nome;
+        info.appendChild(nome);
+
+        var data = document.createElement('div');
+        data.className = 'pedido-data';
+        data.textContent = formatarData(p.created_at);
+        info.appendChild(data);
+
+        header.appendChild(info);
+
+        var badge = document.createElement('span');
+        badge.className = 'status ' + p.status;
+        badge.textContent = statusLabel(p.status);
+        header.appendChild(badge);
+
+        card.appendChild(header);
+
+        // Itens (resumo)
+        var itensResumo = document.createElement('div');
+        itensResumo.className = 'pedido-itens-resumo';
+        var partes = p.itens.map(function(item) {
+          return item.quantidade + 'x ' + item.produto_nome;
+        });
+        itensResumo.textContent = partes.join(', ');
+        card.appendChild(itensResumo);
+
+        // Total
+        var total = document.createElement('div');
+        total.className = 'pedido-total';
+        total.textContent = formatarCentavos(p.total);
+        card.appendChild(total);
+
+        // Ações
+        var acoes = document.createElement('div');
+        acoes.className = 'pedido-acoes';
+
+        if (p.status === 'pendente') {
+          var btnPagar = document.createElement('button');
+          btnPagar.className = 'btn btn-small btn-primary';
+          btnPagar.textContent = 'Confirmar Pagamento';
+          btnPagar.onclick = function() { mostrarAviso(6); };
+          acoes.appendChild(btnPagar);
+        }
+
+        if (p.status === 'pago') {
+          var btnEntregar = document.createElement('button');
+          btnEntregar.className = 'btn btn-small btn-primary';
+          btnEntregar.textContent = 'Marcar como Entregue';
+          btnEntregar.onclick = function() { mostrarAviso(7); };
+          acoes.appendChild(btnEntregar);
+        }
+
+        if (p.status === 'entregue') {
+          var feito = document.createElement('span');
+          feito.style.cssText = 'font-size:13px;color:var(--text3);';
+          feito.textContent = '✓ Pedido finalizado';
+          acoes.appendChild(feito);
+        }
+
+        card.appendChild(acoes);
+
+        // WhatsApp do cliente
+        var wp = document.createElement('div');
+        wp.style.cssText = 'margin-top:8px;font-size:13px;color:var(--text3);';
+        wp.textContent = '📱 ' + p.cliente_whatsapp;
+        card.appendChild(wp);
+
+        container.appendChild(card);
+      });
+    })();
+  </script>
+</body>
+</html>

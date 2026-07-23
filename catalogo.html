@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Catálogo — Ateliê Iraides</title>
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <a href="index.html" class="top-bar-logo">Ateliê <span>Iraides</span></a>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="catalogo.html" class="ativo">Catálogo</a>
+        <span class="nav-divider"></span>
+        <span class="nav-label">Protegido</span>
+        <a href="pedidos.html">Pedidos</a>
+        <a href="novo-pedido.html">Novo Pedido</a>
+        <span class="nav-divider"></span>
+        <a href="login.html" class="entrar" id="nav-entrar">Entrar</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="section-header">
+      <h2>Todos os Vestidos</h2>
+    </div>
+
+    <div class="produto-grid" id="grade-vestidos">
+      <!-- preenchido por js -->
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    (function() {
+      var entrar = document.getElementById('nav-entrar');
+      if (estaLogado()) {
+        entrar.textContent = 'Sair';
+        entrar.href = '#';
+        entrar.onclick = function(e) { e.preventDefault(); simularLogout(); };
+      }
+
+      var grade = document.getElementById('grade-vestidos');
+      vestidos.forEach(function(v) {
+        var card = document.createElement('a');
+        card.className = 'produto-card';
+        card.href = 'produto.html?id=' + v.id;
+
+        var img = document.createElement('div');
+        img.className = 'produto-card-img';
+        img.textContent = '📷 ' + v.nome;
+
+        var body = document.createElement('div');
+        body.className = 'produto-card-body';
+
+        var nome = document.createElement('h3');
+        nome.textContent = v.nome;
+
+        body.appendChild(nome);
+
+        if (v.disponivel) {
+          var preco = document.createElement('div');
+          preco.className = 'preco';
+          preco.textContent = formatarCentavos(v.preco);
+          body.appendChild(preco);
+        } else {
+          var indispo = document.createElement('div');
+          indispo.className = 'indisponivel';
+          indispo.textContent = 'Indisponível';
+          body.appendChild(indispo);
+        }
+
+        card.appendChild(img);
+        card.appendChild(body);
+        grade.appendChild(card);
+      });
+    })();
+  </script>
+</body>
+</html>

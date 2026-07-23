@@ -61,7 +61,7 @@
         img.className = 'produto-card-img';
         img.style.background = v.cor;
         var imgEl = document.createElement('img');
-        imgEl.src = gerarImagemVestido(v.nome, v.cor);
+        imgEl.src = gerarImagemVestido(v.nome, v.cor, v.lock);
         imgEl.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
         img.appendChild(imgEl);
 

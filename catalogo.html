@@ -44,13 +44,6 @@
   <script src="js/app.js"></script>
   <script>
     (function() {
-      var entrar = document.getElementById('nav-entrar');
-      if (estaLogado()) {
-        entrar.textContent = 'Sair';
-        entrar.href = '#';
-        entrar.onclick = function(e) { e.preventDefault(); simularLogout(); };
-      }
-
       var grade = document.getElementById('grade-vestidos');
       vestidos.forEach(function(v) {
         var card = document.createElement('a');

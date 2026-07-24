@@ -1,3 +1,7 @@
+// ── SUPABASE ──
+
+var supabase = window.__sb;
+
 // ── DADOS DE EXEMPLO ──
 
 const vestidos = [
@@ -164,26 +168,93 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// ── SIMULAÇÃO DE LOGIN ──
+// ── AUTH ──
 
-function simularLogin() {
-  localStorage.setItem('logado', 'true');
-  window.location.href = 'pedidos.html';
+function mostrarTab(tab) {
+  document.getElementById('form-entrar').style.display = tab === 'entrar' ? 'block' : 'none';
+  document.getElementById('form-cadastrar').style.display = tab === 'cadastrar' ? 'block' : 'none';
+  document.getElementById('tab-entrar').classList.toggle('ativo', tab === 'entrar');
+  document.getElementById('tab-cadastrar').classList.toggle('ativo', tab === 'cadastrar');
+  var err = document.getElementById('login-erro');
+  if (err) { err.textContent = ''; err.style.display = 'none'; }
 }
 
-function simularLogout() {
-  localStorage.removeItem('logado');
+function mostrarErroLogin(msg) {
+  var el = document.getElementById('login-erro');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function traduzirErroAuth(msg) {
+  var m = msg.toLowerCase();
+  if (m.includes('invalid login credentials')) return 'E-mail ou senha incorretos.';
+  if (m.includes('email not confirmed')) return 'Confirme seu e-mail antes de entrar. Olhe sua caixa de entrada.';
+  if (m.includes('user already registered')) return 'Este e-mail já tem uma conta. Tente "Entrar" em vez de "Cadastrar".';
+  if (m.includes('password should be at least 6')) return 'A senha precisa ter pelo menos 6 caracteres.';
+  if (m.includes('rate limit') || m.includes('rate_limit')) return 'Você tentou muitas vezes. Espere um minuto e tente de novo.';
+  return msg;
+}
+
+async function fazerLogin() {
+  var email = document.getElementById('email').value.trim();
+  var senha = document.getElementById('senha').value;
+  if (!email || !senha) { mostrarErroLogin('Preencha o e-mail e a senha.'); return; }
+
+  var btn = document.querySelector('#form-entrar .btn');
+  btn.disabled = true;
+  btn.textContent = 'Entrando…';
+
+  var { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+
+  btn.disabled = false;
+  btn.textContent = 'Entrar';
+
+  if (error) { mostrarErroLogin(traduzirErroAuth(error.message)); return; }
+
+  var redirect = new URLSearchParams(window.location.search).get('redirect') || 'pedidos.html';
+  window.location.href = redirect;
+}
+
+async function fazerCadastro() {
+  var email = document.getElementById('email-cadastro').value.trim();
+  var senha = document.getElementById('senha-cadastro').value;
+  if (!email || !senha) { mostrarErroLogin('Preencha o e-mail e a senha.'); return; }
+  if (senha.length < 6) { mostrarErroLogin('A senha precisa ter pelo menos 6 caracteres.'); return; }
+
+  var btn = document.querySelector('#form-cadastrar .btn');
+  btn.disabled = true;
+  btn.textContent = 'Cadastrando…';
+
+  var { error } = await supabase.auth.signUp({ email, password: senha });
+
+  btn.disabled = false;
+  btn.textContent = 'Criar Conta';
+
+  if (error) { mostrarErroLogin(traduzirErroAuth(error.message)); return; }
+
+  mostrarErroLogin('Conta criada! Confira seu e-mail para confirmar. Depois faça login.');
+}
+
+async function estaLogado() {
+  var { data } = await supabase.auth.getSession();
+  return !!data.session;
+}
+
+async function fazerLogout() {
+  await supabase.auth.signOut();
   window.location.href = 'index.html';
-}
-
-function estaLogado() {
-  return localStorage.getItem('logado') === 'true';
 }
 
 // ── PROTEGER PÁGINA ──
 
-function protegerPagina() {
-  if (!estaLogado()) {
+var _protegendo = false;
+async function protegerPagina() {
+  if (_protegendo) return;
+  _protegendo = true;
+  var logado = await estaLogado();
+  if (!logado) {
     window.location.href = 'login.html?redirect=' + window.location.pathname;
   }
+  _protegendo = false;
 }

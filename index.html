@@ -53,16 +53,5 @@
   </main>
 
   <script src="js/app.js"></script>
-  <script>
-    // Ajusta nav conforme estado de login
-    (function() {
-      var entrar = document.getElementById('nav-entrar');
-      if (estaLogado()) {
-        entrar.textContent = 'Sair';
-        entrar.href = '#';
-        entrar.onclick = function(e) { e.preventDefault(); simularLogout(); };
-      }
-    })();
-  </script>
 </body>
 </html>

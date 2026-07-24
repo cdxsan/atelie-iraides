@@ -570,6 +570,44 @@ h2 {
   margin-top: 16px;
 }
 
+.login-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.login-tab {
+  flex: 1;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--text2);
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.login-tab.ativo {
+  background: var(--accent);
+  color: #121212;
+}
+
+.login-erro {
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--accent);
+  text-align: center;
+  margin-top: 16px;
+  display: none;
+}
+
 /* ── DIVIDER ── */
 
 .divider {

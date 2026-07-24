@@ -38,82 +38,97 @@
     <div class="card" style="border-color:rgba(255,107,107,0.3);">
       <label class="form-label" style="font-size:14px;">
         Colar texto do WhatsApp
-        <span style="color:var(--text3);font-weight:400;"> (IA extrai automaticamente no dia 9)</span>
+        <span style="color:var(--text3);font-weight:400;"> (IA extrai no dia 9)</span>
       </label>
-      <textarea class="form-input" id="texto-bruto" placeholder="Cole aqui o texto da conversa do WhatsApp com a cliente...">Ana Beatriz Silva - (62) 99999-1001 - Rua das Flores, 123, Centro, Aparecida de Goiânia - GO. Quer 1 Vestido Florido Azul por R$ 89,00. Frete R$ 12,00. Total R$ 101,00.</textarea>
-      <button class="btn btn-outline btn-small" style="margin-top:8px;" onclick="extrairIA()">Extrair com IA</button>
+      <textarea class="form-input" id="texto-bruto" placeholder="Cole aqui o texto da conversa do WhatsApp com a cliente..."></textarea>
     </div>
 
     <!-- ── FORMULÁRIO ── -->
     <div class="card">
       <div class="form-group">
         <label class="form-label">Nome do cliente</label>
-        <input class="form-input" id="cliente-nome" value="Ana Beatriz Silva">
+        <input class="form-input" id="cliente-nome" placeholder="Nome da cliente">
       </div>
 
       <div class="form-group">
         <label class="form-label">WhatsApp</label>
-        <input class="form-input" id="cliente-whatsapp" value="(62) 99999-1001">
+        <input class="form-input" id="cliente-whatsapp" placeholder="(xx) xxxxx-xxxx">
       </div>
 
       <div class="form-group">
         <label class="form-label">Endereço de entrega</label>
-        <textarea class="form-input" id="cliente-endereco" style="min-height:60px;">Rua das Flores, 123, Centro, Aparecida de Goiânia - GO</textarea>
+        <textarea class="form-input" id="cliente-endereco" style="min-height:60px;" placeholder="Rua, número, bairro, cidade"></textarea>
       </div>
 
       <div class="form-group">
         <label class="form-label">Frete (em centavos — ex: 1200 = R$ 12,00)</label>
-        <input class="form-input" id="frete-valor" type="number" value="1200">
+        <input class="form-input" id="frete-valor" type="number" placeholder="1200">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Total (em centavos — ex: 10100 = R$ 101,00)</label>
+        <input class="form-input" id="total" type="number" placeholder="10100">
       </div>
     </div>
 
-    <!-- ── ITENS DO PEDIDO ── -->
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <label class="form-label" style="margin:0;">Itens do pedido</label>
-        <button class="btn btn-small btn-outline" onclick="mostrarAviso(6)" style="width:auto;">+ Adicionar</button>
-      </div>
-
-      <div id="itens-pedido">
-        <!-- Item 1 -->
-        <div class="pedido-item">
-          <div>
-            <div style="font-size:14px;color:#fff;font-weight:600;">Vestido Florido Azul</div>
-            <div style="font-size:12px;color:var(--text3);">1 unidade x R$ 89,00</div>
-          </div>
-          <div style="font-size:15px;color:var(--accent);font-weight:700;">R$ 89,00</div>
-        </div>
-      </div>
-
-      <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;display:flex;justify-content:space-between;">
-        <span style="color:var(--text2);font-weight:600;">Total com frete</span>
-        <span style="color:var(--accent);font-size:18px;font-weight:700;" id="total-exemplo">R$ 101,00</span>
-      </div>
-    </div>
+    <!-- ── ERRO ── -->
+    <div id="erro-pedido" class="login-erro"></div>
 
     <!-- ── SALVAR ── -->
-    <button class="btn btn-primary" onclick="mostrarAviso(6)">Salvar Pedido</button>
+    <button class="btn btn-primary" id="btn-salvar-pedido" onclick="salvarPedido()">Salvar Pedido</button>
     <a href="pedidos.html" class="btn btn-outline" style="margin-top:8px;">Cancelar</a>
   </main>
 
   <div id="aviso-futuro" class="aviso-futuro"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
   <script src="js/app.js"></script>
   <script>
-    (function() {
-      protegerPagina();
+    (async function() {
+      await protegerPagina();
 
       var entrar = document.getElementById('nav-entrar');
-      entrar.onclick = function(e) { e.preventDefault(); simularLogout(); };
+      if (entrar) entrar.onclick = function(e) { e.preventDefault(); fazerLogout(); };
     })();
 
-    function extrairIA() {
-      // Simula a extração: preenche os campos com dados de exemplo
-      document.getElementById('cliente-nome').value = 'Ana Beatriz Silva';
-      document.getElementById('cliente-whatsapp').value = '(62) 99999-1001';
-      document.getElementById('cliente-endereco').value = 'Rua das Flores, 123, Centro, Aparecida de Goiânia - GO';
-      document.getElementById('frete-valor').value = '1200';
-      mostrarAviso(9);
+    async function salvarPedido() {
+      var nome = document.getElementById('cliente-nome').value.trim();
+      var whatsapp = document.getElementById('cliente-whatsapp').value.trim();
+      var endereco = document.getElementById('cliente-endereco').value.trim();
+      var frete = parseInt(document.getElementById('frete-valor').value) || 0;
+      var total = parseInt(document.getElementById('total').value) || 0;
+      var textoBruto = document.getElementById('texto-bruto').value.trim() || null;
+
+      if (!nome || !whatsapp || !endereco) {
+        document.getElementById('erro-pedido').textContent = 'Preencha nome, WhatsApp e endereço do cliente.';
+        document.getElementById('erro-pedido').style.display = 'block';
+        return;
+      }
+
+      var btn = document.getElementById('btn-salvar-pedido');
+      btn.disabled = true;
+      btn.textContent = 'Salvando…';
+
+      var { error } = await supabase.from('pedido').insert({
+        cliente_nome: nome,
+        cliente_whatsapp: whatsapp,
+        cliente_endereco: endereco,
+        frete_valor: frete,
+        total: total,
+        texto_bruto: textoBruto
+      });
+
+      btn.disabled = false;
+      btn.textContent = 'Salvar Pedido';
+
+      if (error) {
+        document.getElementById('erro-pedido').textContent = 'Erro ao salvar: ' + error.message;
+        document.getElementById('erro-pedido').style.display = 'block';
+        return;
+      }
+
+      window.location.href = 'pedidos.html';
     }
   </script>
 </body>

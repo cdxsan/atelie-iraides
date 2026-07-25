@@ -121,6 +121,7 @@ body {
 }
 
 .nav-divider {
+  display: none;
   width: 1px;
   height: 20px;
   background: var(--border);
@@ -128,11 +129,17 @@ body {
 }
 
 .nav-label {
+  display: none;
   font-size: 11px;
   color: var(--text3);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 0 4px;
+}
+
+body.admin .nav-divider,
+body.admin .nav-label {
+  display: inline;
 }
 
 /* ── CONTEÚDO ── */
@@ -651,14 +658,15 @@ h2 {
     border-radius: 0;
   }
 
-  .nav-divider {
+  body.admin .nav-divider {
+    display: block;
     width: 100%;
     height: 1px;
     margin: 4px 0;
     background: var(--border);
   }
 
-  .nav-label {
+  body.admin .nav-label {
     display: block;
     width: 100%;
     padding: 10px 20px 4px;

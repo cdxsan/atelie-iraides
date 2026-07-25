@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Novo Pedido — Ateliê Iraides</title>
+  <title>Editar Pedido — Ateliê Iraides</title>
   <link rel="stylesheet" href="css/estilo.css">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 </head>
@@ -32,58 +32,54 @@
   </header>
 
   <main class="main">
-    <h2>Novo Pedido</h2>
+    <h2>Editar Pedido</h2>
 
-    <!-- ── COLAR TEXTO DO WHATSAPP (IA FUTURA) ── -->
-    <div class="card" style="border-color:rgba(255,107,107,0.3);">
-      <label class="form-label" style="font-size:14px;">
-        Colar texto do WhatsApp
-        <span style="color:var(--text3);font-weight:400;"> (IA extrai no dia 9)</span>
-      </label>
-      <textarea class="form-input" id="texto-bruto" placeholder="Cole aqui o texto da conversa do WhatsApp com a cliente..."></textarea>
+    <div id="carregando" style="text-align:center;padding:20px;color:var(--text3);">Carregando…</div>
+
+    <div id="form-editar" style="display:none;">
+
+      <!-- ── DADOS DO CLIENTE ── -->
+      <div class="card">
+        <div class="form-group">
+          <label class="form-label">Nome do cliente</label>
+          <input class="form-input" id="cliente-nome" placeholder="Nome da cliente">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">WhatsApp</label>
+          <input class="form-input" id="cliente-whatsapp" placeholder="(xx) xxxxx-xxxx">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Endereço de entrega</label>
+          <textarea class="form-input" id="cliente-endereco" style="min-height:60px;" placeholder="Rua, número, bairro, cidade"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Frete (em centavos — ex: 1200 = R$ 12,00)</label>
+          <input class="form-input" id="frete-valor" type="number" placeholder="1200" oninput="recalcularPrevia()">
+        </div>
+      </div>
+
+      <!-- ── ITENS DO PEDIDO ── -->
+      <div class="card">
+        <label class="form-label">Itens do pedido</label>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:8px;">Preço em centavos (ex: 8900 = R$ 89,00)</p>
+        <div id="itens-lista"></div>
+        <button class="btn btn-small btn-outline" onclick="adicionarItem()" style="margin-top:8px;">+ Adicionar item</button>
+
+        <div id="previa-total" style="text-align:right;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:20px;font-weight:700;color:var(--accent);">
+          Total: R$ 0,00
+        </div>
+      </div>
+
+      <!-- ── ERRO ── -->
+      <div id="erro-pedido" class="login-erro"></div>
+
+      <!-- ── SALVAR ── -->
+      <button class="btn btn-primary" id="btn-salvar" onclick="salvarEdicao()">Salvar Alterações</button>
+      <a href="pedidos.html" class="btn btn-outline" style="margin-top:8px;">Cancelar</a>
     </div>
-
-    <!-- ── DADOS DO CLIENTE ── -->
-    <div class="card">
-      <div class="form-group">
-        <label class="form-label">Nome do cliente</label>
-        <input class="form-input" id="cliente-nome" placeholder="Nome da cliente">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">WhatsApp</label>
-        <input class="form-input" id="cliente-whatsapp" placeholder="(xx) xxxxx-xxxx">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Endereço de entrega</label>
-        <textarea class="form-input" id="cliente-endereco" style="min-height:60px;" placeholder="Rua, número, bairro, cidade"></textarea>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Frete (em centavos — ex: 1200 = R$ 12,00)</label>
-        <input class="form-input" id="frete-valor" type="number" placeholder="1200" oninput="recalcularPrevia()">
-      </div>
-    </div>
-
-    <!-- ── ITENS DO PEDIDO ── -->
-    <div class="card">
-      <label class="form-label">Itens do pedido</label>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:8px;">Preço em centavos (ex: 8900 = R$ 89,00)</p>
-      <div id="itens-lista"></div>
-      <button class="btn btn-small btn-outline" onclick="adicionarItem()" style="margin-top:8px;">+ Adicionar item</button>
-
-      <div id="previa-total" style="text-align:right;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:20px;font-weight:700;color:var(--accent);">
-        Total: R$ 0,00
-      </div>
-    </div>
-
-    <!-- ── ERRO ── -->
-    <div id="erro-pedido" class="login-erro"></div>
-
-    <!-- ── SALVAR ── -->
-    <button class="btn btn-primary" id="btn-salvar-pedido" onclick="salvarPedido()">Salvar Pedido</button>
-    <a href="pedidos.html" class="btn btn-outline" style="margin-top:8px;">Cancelar</a>
   </main>
 
   <div id="aviso-futuro" class="aviso-futuro"></div>
@@ -92,20 +88,50 @@
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
   <script>
+    var pedidoId = null;
+
     (async function() {
       await protegerPagina();
       await ajustarNav();
 
-      var admin = await isAdmin();
-      if (!admin) {
-        window.location.href = 'carrinho.html';
-        return;
-      }
-
       var entrar = document.getElementById('nav-entrar');
       if (entrar) entrar.onclick = function(e) { e.preventDefault(); fazerLogout(); };
 
-      adicionarItem();
+      var params = new URLSearchParams(window.location.search);
+      pedidoId = params.get('id');
+
+      if (!pedidoId) {
+        document.getElementById('carregando').textContent = 'Nenhum pedido informado.';
+        return;
+      }
+
+      var { data: pedido, error } = await supabase
+        .from('pedido')
+        .select('*, pedido_item(*)')
+        .eq('id', pedidoId)
+        .single();
+
+      if (error || !pedido) {
+        document.getElementById('carregando').textContent = 'Erro ao carregar pedido: ' + (error ? error.message : 'não encontrado');
+        return;
+      }
+
+      document.getElementById('carregando').style.display = 'none';
+      document.getElementById('form-editar').style.display = 'block';
+
+      document.getElementById('cliente-nome').value = pedido.cliente_nome || '';
+      document.getElementById('cliente-whatsapp').value = pedido.cliente_whatsapp || '';
+      document.getElementById('cliente-endereco').value = pedido.cliente_endereco || '';
+      document.getElementById('frete-valor').value = pedido.frete_valor || 0;
+
+      var itens = pedido.pedido_item || [];
+      if (itens.length === 0) {
+        adicionarItem();
+      } else {
+        itens.forEach(function(item) {
+          adicionarItem(item.nome, item.quantidade, item.preco_unitario);
+        });
+      }
     })();
 
     function adicionarItem(nome, qtd, preco) {
@@ -145,7 +171,7 @@
       document.getElementById('previa-total').textContent = 'Total: R$ ' + (total / 100).toFixed(2).replace('.', ',');
     }
 
-    async function salvarPedido() {
+    async function salvarEdicao() {
       var nome = document.getElementById('cliente-nome').value.trim();
       var whatsapp = document.getElementById('cliente-whatsapp').value.trim();
       var endereco = document.getElementById('cliente-endereco').value.trim();
@@ -174,35 +200,43 @@
       var soma = itens.reduce(function(s, i) { return s + i.quantidade * i.preco_unitario; }, 0);
       var total = frete + soma;
 
-      var btn = document.getElementById('btn-salvar-pedido');
+      var btn = document.getElementById('btn-salvar');
       btn.disabled = true;
       btn.textContent = 'Salvando…';
 
-      var textoBruto = document.getElementById('texto-bruto').value.trim() || null;
-
-      var { data: pedido, error: erroPedido } = await supabase
+      var { error: erroPedido } = await supabase
         .from('pedido')
-        .insert({
+        .update({
           cliente_nome: nome,
           cliente_whatsapp: whatsapp,
           cliente_endereco: endereco,
           frete_valor: frete,
-          total: total,
-          texto_bruto: textoBruto
+          total: total
         })
-        .select()
-        .single();
+        .eq('id', pedidoId);
 
       if (erroPedido) {
         btn.disabled = false;
-        btn.textContent = 'Salvar Pedido';
+        btn.textContent = 'Salvar Alterações';
         mostrarErro('Erro ao salvar pedido: ' + erroPedido.message);
+        return;
+      }
+
+      var { error: erroDelete } = await supabase
+        .from('pedido_item')
+        .delete()
+        .eq('pedido_id', pedidoId);
+
+      if (erroDelete) {
+        btn.disabled = false;
+        btn.textContent = 'Salvar Alterações';
+        mostrarErro('Erro ao remover itens antigos: ' + erroDelete.message);
         return;
       }
 
       var itensParaInserir = itens.map(function(i) {
         return {
-          pedido_id: pedido.id,
+          pedido_id: pedidoId,
           nome: i.nome,
           quantidade: i.quantidade,
           preco_unitario: i.preco_unitario
@@ -213,7 +247,7 @@
 
       if (erroItens) {
         btn.disabled = false;
-        btn.textContent = 'Salvar Pedido';
+        btn.textContent = 'Salvar Alterações';
         mostrarErro('Erro ao salvar itens: ' + erroItens.message);
         return;
       }

@@ -9,7 +9,7 @@ const vestidos = [
   { id: 'v2', nome: 'Vestido Linho Bege', descricao: 'Midi, alça fina, tecido de linho. Fresco e elegante para dias quentes.', preco: 12000, disponivel: true, cor: '#c4a87c' },
   { id: 'v3', nome: 'Vestido Estampado Vermelho', descricao: 'Longo, estampa floral, decote V. Perfeito para eventos durante o dia.', preco: 9500, disponivel: true, cor: '#a83232' },
   { id: 'v4', nome: 'Vestido Midi Preto', descricao: 'Midi, gola redonda, tecido acetinado. Básico versátil do armário.', preco: 11000, disponivel: true, cor: '#2a2a2a' },
-  { id: 'v5', nome: 'Vestido Cropped Verde', descricao: 'Curto, modelo cropped, tecido viscolycra. Moderno e confortável.', preco: 7500, disponivel: false, cor: '#4a7a4a' },
+  { id: 'v5', nome: 'Vestido Cropped Verde', descricao: 'Curto, modelo cropped, tecido viscolycra. Moderno e confortável.', preco: 7500, disponivel: true, cor: '#4a7a4a' },
 ];
 
 const pedidos = [
@@ -168,6 +168,72 @@ document.addEventListener('click', function(e) {
   }
 });
 
+// ── ADMIN ──
+
+async function isAdmin() {
+  var { data } = await supabase.auth.getSession();
+  if (!data.session) return false;
+  var { data: resultado } = await supabase.rpc('is_admin');
+  return resultado === true;
+}
+
+// ── CARRINHO (localStorage) ──
+
+function carrinhoGet() {
+  try { return JSON.parse(localStorage.getItem('carrinho')) || []; } catch(e) { return []; }
+}
+
+function carrinhoSalvar(itens) {
+  localStorage.setItem('carrinho', JSON.stringify(itens));
+}
+
+function carrinhoAdd(produto, tamanho, quantidade) {
+  var itens = carrinhoGet();
+  itens.push({
+    produto_id: produto.id,
+    nome: produto.nome,
+    preco: produto.preco,
+    tamanho: tamanho,
+    quantidade: quantidade
+  });
+  carrinhoSalvar(itens);
+}
+
+function carrinhoRemover(index) {
+  var itens = carrinhoGet();
+  itens.splice(index, 1);
+  carrinhoSalvar(itens);
+}
+
+function carrinhoLimpar() {
+  localStorage.removeItem('carrinho');
+}
+
+function carrinhoContar() {
+  return carrinhoGet().length;
+}
+
+// ── VALIDAÇÃO ──
+
+function validarInteiroPositivo(valor, nomeCampo) {
+  var num = parseInt(valor);
+  if (isNaN(num) || num < 1) return nomeCampo + ' precisa ser um número inteiro maior que zero.';
+  if (String(valor).includes('.') || String(valor).includes(',')) return nomeCampo + ' não pode ter vírgula ou ponto. Use número inteiro.';
+  return null;
+}
+
+function validarPrecoCentavos(valor, nomeCampo) {
+  var num = parseInt(valor);
+  if (isNaN(num) || num < 1) return nomeCampo + ' precisa ser um valor maior que zero (em centavos).';
+  return null;
+}
+
+function validarTextoPreenchido(valor, nomeCampo) {
+  if (!valor || valor.trim().length === 0) return nomeCampo + ' não pode ficar vazio.';
+  if (valor.trim().length > 500) return nomeCampo + ' está muito longo (máximo 500 caracteres).';
+  return null;
+}
+
 // ── AUTH ──
 
 function mostrarTab(tab) {
@@ -205,12 +271,14 @@ async function fazerLogin() {
   btn.disabled = true;
   btn.textContent = 'Entrando…';
 
-  var { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+  var { error } = await supabase.auth.signInWithPassword({ email, password: senha }); // ← { error }
 
   btn.disabled = false;
   btn.textContent = 'Entrar';
 
   if (error) { mostrarErroLogin(traduzirErroAuth(error.message)); return; }
+
+  carrinhoLimpar();
 
   var redirect = new URLSearchParams(window.location.search).get('redirect') || 'pedidos.html';
   window.location.href = redirect;
@@ -226,7 +294,7 @@ async function fazerCadastro() {
   btn.disabled = true;
   btn.textContent = 'Cadastrando…';
 
-  var { error } = await supabase.auth.signUp({ email, password: senha });
+  var { error } = await supabase.auth.signUp({ email, password: senha }); // ← { error }
 
   btn.disabled = false;
   btn.textContent = 'Criar Conta';
@@ -242,6 +310,7 @@ async function estaLogado() {
 }
 
 async function fazerLogout() {
+  carrinhoLimpar();
   await supabase.auth.signOut();
   window.location.href = 'index.html';
 }
@@ -249,12 +318,25 @@ async function fazerLogout() {
 // ── PROTEGER PÁGINA ──
 
 var _protegendo = false;
+// Mostra ou esconde o rotulo "Protegido" e os divisores do menu
+// So aparecem quando Iraides (admin) esta logada
+async function ajustarNav() {
+  var admin = await isAdmin();
+  if (admin) {
+    document.body.classList.add('admin');
+    document.querySelectorAll('.nav-carrinho').forEach(function(el) {
+      el.style.display = 'none';
+    });
+  }
+}
+
 async function protegerPagina() {
   if (_protegendo) return;
   _protegendo = true;
   var logado = await estaLogado();
   if (!logado) {
     window.location.href = 'login.html?redirect=' + window.location.pathname;
+    return;
   }
   _protegendo = false;
 }

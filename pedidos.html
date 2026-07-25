@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Meus Pedidos — Ateliê Iraides</title>
+  <title>Pedidos — Ateliê Iraides</title>
   <link rel="stylesheet" href="css/estilo.css">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 </head>
@@ -23,8 +23,8 @@
         <a href="catalogo.html">Catálogo</a>
         <span class="nav-divider"></span>
         <span class="nav-label">Protegido</span>
+        <a href="carrinho.html" class="nav-carrinho">Carrinho</a>
         <a href="pedidos.html" class="ativo">Pedidos</a>
-        <a href="novo-pedido.html">Novo Pedido</a>
         <span class="nav-divider"></span>
         <a href="#" class="entrar" id="nav-entrar">Sair</a>
       </nav>
@@ -33,12 +33,30 @@
 
   <main class="main">
     <div class="section-header">
-      <h2>Meus Pedidos</h2>
-      <a href="novo-pedido.html" class="btn btn-primary btn-small">+ Novo</a>
+      <h2 id="titulo-pedidos">Pedidos</h2>
+      <div id="botao-novo"></div>
+    </div>
+
+    <!-- ── BUSCA (só admin) ── -->
+    <div id="busca-admin" style="display:none;">
+      <div class="card" style="padding:12px;">
+        <input class="form-input" id="busca" placeholder="Buscar por nome do cliente..." oninput="filtrarPedidos()" style="min-height:40px;padding:10px;">
+      </div>
     </div>
 
     <div id="lista-pedidos">
-      <!-- preenchido por js -->
+      <p style="color:var(--text3);text-align:center;padding:20px;">Carregando…</p>
+    </div>
+
+    <div id="vazio" style="display:none;text-align:center;padding:40px 20px;">
+      <div style="font-size:40px;margin-bottom:12px;">🛍️</div>
+      <p style="font-size:17px;font-weight:600;color:#fff;margin-bottom:8px;">Nenhum pedido ainda</p>
+      <p style="font-size:14px;color:var(--text3);margin-bottom:20px;">
+        <span id="vazio-admin-msg" style="display:none;">Os pedidos que os clientes enviarem vão aparecer aqui.</span>
+        <span id="vazio-cliente-msg">Navegue pelo catálogo, escolha seus vestidos e faça seu primeiro pedido!</span>
+      </p>
+      <a href="catalogo.html" class="btn btn-primary" id="vazio-btn-catalogo">Ver Catálogo</a>
+      <a href="carrinho.html" class="btn btn-outline" id="vazio-btn-carrinho" style="display:none;">Ir para o Carrinho</a>
     </div>
   </main>
 
@@ -48,17 +66,41 @@
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
   <script>
+    var todosPedidos = [];
+    var admin = false;
+
     (async function() {
       await protegerPagina();
+      await ajustarNav();
 
       var entrar = document.getElementById('nav-entrar');
       if (entrar) entrar.onclick = function(e) { e.preventDefault(); fazerLogout(); };
+
+      admin = await isAdmin();
+
+      // Admin vê "Pedidos" + busca + botão novo
+      // Cliente vê "Meus Pedidos" sem busca nem ações
+      if (admin) {
+        document.getElementById('titulo-pedidos').textContent = 'Pedidos';
+        document.getElementById('busca-admin').style.display = 'block';
+        document.getElementById('botao-novo').innerHTML = '<a href="novo-pedido.html" class="btn btn-primary btn-small">+ Novo</a>';
+        document.getElementById('vazio-admin-msg').style.display = 'block';
+      } else {
+        document.getElementById('titulo-pedidos').textContent = 'Meus Pedidos';
+        document.getElementById('vazio-cliente-msg').style.display = 'block';
+        document.getElementById('vazio-btn-carrinho').style.display = '';
+      }
+
+      await carregarPedidos();
+    })();
+
+    async function carregarPedidos() {
       var container = document.getElementById('lista-pedidos');
       container.innerHTML = '<p style="color:var(--text3);text-align:center;padding:20px;">Carregando…</p>';
 
       var { data: pedidos, error } = await supabase
         .from('pedido')
-        .select('*')
+        .select('*, pedido_item(*)')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -66,17 +108,37 @@
         return;
       }
 
-      if (!pedidos || pedidos.length === 0) {
-        container.innerHTML = '<p style="color:var(--text3);text-align:center;padding:20px;">Nenhum pedido ainda.</p>';
-        return;
+      todosPedidos = pedidos || [];
+      filtrarPedidos();
+    }
+
+    function filtrarPedidos() {
+      var termo = admin ? document.getElementById('busca').value.trim() : '';
+      var container = document.getElementById('lista-pedidos');
+      var vazio = document.getElementById('vazio');
+
+      var filtrados = todosPedidos;
+      if (termo) {
+        var normalizado = termo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        filtrados = todosPedidos.filter(function(p) {
+          var nome = (p.cliente_nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          return nome.includes(normalizado);
+        });
       }
 
       container.innerHTML = '';
 
-      pedidos.forEach(function(p) {
+      if (filtrados.length === 0) {
+        vazio.style.display = 'block';
+        return;
+      }
+      vazio.style.display = 'none';
+
+      filtrados.forEach(function(p) {
         var card = document.createElement('div');
         card.className = 'card pedido-card';
 
+        // ── CABEÇALHO: nome + status ──
         var header = document.createElement('div');
         header.className = 'card-header';
 
@@ -100,47 +162,116 @@
 
         card.appendChild(header);
 
+        // ── ITENS ──
+        var itens = p.pedido_item || [];
+        if (itens.length > 0) {
+          var itensDiv = document.createElement('div');
+          itensDiv.className = 'pedido-itens-resumo';
+          itens.forEach(function(item) {
+            var linha = document.createElement('div');
+            linha.style.cssText = 'display:flex;justify-content:space-between;font-size:13px;padding:2px 0;';
+            linha.innerHTML =
+              '<span>' + item.nome + ' <span style="color:var(--text3);">Tam ' + (item.tamanho || '-') + ' x' + item.quantidade + '</span></span>' +
+              '<span>' + formatarCentavos(item.preco_unitario * item.quantidade) + '</span>';
+            itensDiv.appendChild(linha);
+          });
+          card.appendChild(itensDiv);
+        }
+
+        // ── TOTAL ──
         var total = document.createElement('div');
         total.className = 'pedido-total';
         total.textContent = formatarCentavos(p.total || 0);
         card.appendChild(total);
 
-        var acoes = document.createElement('div');
-        acoes.className = 'pedido-acoes';
-
-        if (p.status === 'pendente') {
-          var btnPagar = document.createElement('button');
-          btnPagar.className = 'btn btn-small btn-primary';
-          btnPagar.textContent = 'Confirmar Pagamento';
-          btnPagar.onclick = function() { mostrarAviso(6); };
-          acoes.appendChild(btnPagar);
+        // ── WHATSAPP ──
+        if (admin) {
+          var wp = document.createElement('div');
+          wp.style.cssText = 'font-size:13px;color:var(--text3);margin-bottom:8px;';
+          wp.textContent = '📱 ' + p.cliente_whatsapp;
+          card.appendChild(wp);
         }
 
-        if (p.status === 'pago') {
-          var btnEntregar = document.createElement('button');
-          btnEntregar.className = 'btn btn-small btn-primary';
-          btnEntregar.textContent = 'Marcar como Entregue';
-          btnEntregar.onclick = function() { mostrarAviso(7); };
-          acoes.appendChild(btnEntregar);
+        // ── AÇÕES (só admin) ──
+        if (admin) {
+          var acoes = document.createElement('div');
+          acoes.className = 'pedido-acoes';
+          acoes.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
+
+          var btnEditar = document.createElement('button');
+          btnEditar.className = 'btn btn-small btn-outline';
+          btnEditar.textContent = 'Editar';
+          btnEditar.onclick = function() { window.location.href = 'editar-pedido.html?id=' + p.id; };
+          acoes.appendChild(btnEditar);
+
+          if (p.status === 'pendente') {
+            var btnPagar = document.createElement('button');
+            btnPagar.className = 'btn btn-small btn-primary';
+            btnPagar.textContent = 'Confirmar Pagamento';
+            btnPagar.onclick = function() { mudarStatus(p.id, 'pago'); };
+            acoes.appendChild(btnPagar);
+          }
+
+          if (p.status === 'pago') {
+            var btnEntregar = document.createElement('button');
+            btnEntregar.className = 'btn btn-small btn-primary';
+            btnEntregar.textContent = 'Marcar como Entregue';
+            btnEntregar.onclick = function() { mudarStatus(p.id, 'entregue'); };
+            acoes.appendChild(btnEntregar);
+          }
+
+          if (p.status === 'entregue') {
+            var feito = document.createElement('span');
+            feito.style.cssText = 'font-size:13px;color:var(--text3);padding:6px 0;';
+            feito.textContent = '✓ Pedido finalizado';
+            acoes.appendChild(feito);
+          }
+
+          var btnExcluir = document.createElement('button');
+          btnExcluir.className = 'btn btn-small';
+          btnExcluir.style.cssText = 'background:transparent;color:var(--accent);border:1px solid rgba(255,107,107,0.3);';
+          btnExcluir.textContent = 'Excluir';
+          btnExcluir.onclick = function() { excluirPedido(p.id, p.cliente_nome); };
+          acoes.appendChild(btnExcluir);
+
+          card.appendChild(acoes);
         }
-
-        if (p.status === 'entregue') {
-          var feito = document.createElement('span');
-          feito.style.cssText = 'font-size:13px;color:var(--text3);';
-          feito.textContent = '✓ Pedido finalizado';
-          acoes.appendChild(feito);
-        }
-
-        card.appendChild(acoes);
-
-        var wp = document.createElement('div');
-        wp.style.cssText = 'margin-top:8px;font-size:13px;color:var(--text3);';
-        wp.textContent = '📱 ' + p.cliente_whatsapp;
-        card.appendChild(wp);
 
         container.appendChild(card);
       });
-    })();
+    }
+
+    function mostrarSucesso(msg) {
+      var el = document.getElementById('aviso-futuro');
+      if (!el) return;
+      el.textContent = msg;
+      el.style.background = 'rgba(76,175,80,0.1)';
+      el.style.borderColor = 'rgba(76,175,80,0.3)';
+      el.style.color = 'var(--green)';
+      el.classList.add('visivel');
+      setTimeout(function() { el.classList.remove('visivel'); }, 3000);
+    }
+
+    async function mudarStatus(id, novoStatus) {
+      var { error } = await supabase.from('pedido').update({ status: novoStatus }).eq('id', id); // ← { error }
+      if (error) {
+        alert('Erro ao atualizar: ' + error.message);
+        return;
+      }
+      mostrarSucesso('Status atualizado para ' + statusLabel(novoStatus) + '!');
+      await carregarPedidos();
+    }
+
+    async function excluirPedido(id, nome) {
+      if (!confirm('Tem certeza que quer excluir o pedido de ' + nome + '?')) return;
+      var { error } = await supabase.from('pedido').delete().eq('id', id); // ← { error }
+      if (error) {
+        alert('Erro ao excluir: ' + error.message);
+        return;
+      }
+      mostrarSucesso('Pedido de ' + nome + ' excluído.');
+      await carregarPedidos();
+    }
   </script>
 </body>
 </html>

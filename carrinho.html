@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Carrinho — Ateliê Iraides</title>
+  <link rel="stylesheet" href="css/estilo.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <a href="index.html" class="top-bar-logo">
+        <svg class="logo-icon" width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 4C10 4 8 7 8 9l-3 6 2 2 4-2-1 9h8l-1-9 4 2 2-2-3-6c0-2-2-5-6-5z" stroke="#ff6b6b" stroke-width="1.5" stroke-linejoin="round" fill="none"/>
+        </svg>
+        Ateliê <span>Iraides</span>
+      </a>
+      <button class="nav-toggle" onclick="toggleNav()" aria-label="Menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="catalogo.html">Catálogo</a>
+        <span class="nav-divider"></span>
+        <span class="nav-label">Protegido</span>
+        <a href="carrinho.html" class="nav-carrinho ativo">Carrinho</a>
+        <a href="pedidos.html">Pedidos</a>
+        <span class="nav-divider"></span>
+        <a href="#" class="entrar" id="nav-entrar">Sair</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main">
+    <h2>Carrinho</h2>
+
+    <div id="carrinho-vazio" style="display:none;text-align:center;padding:30px 0;">
+      <p style="color:var(--text3);margin-bottom:16px;">Seu carrinho está vazio.</p>
+      <a href="catalogo.html" class="btn btn-primary">Ver Catálogo</a>
+    </div>
+
+    <div id="carrinho-conteudo" style="display:none;">
+
+      <!-- ── ITENS ── -->
+      <div class="card" id="itens-carrinho"></div>
+
+      <!-- ── DADOS DO CLIENTE ── -->
+      <div class="card">
+        <label class="form-label" style="font-size:15px;margin-bottom:8px;">Seus dados para entrega</label>
+
+        <div class="form-group">
+          <label class="form-label">Nome completo</label>
+          <input class="form-input" id="cli-nome" placeholder="Seu nome completo">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">WhatsApp</label>
+          <input class="form-input" id="cli-whatsapp" placeholder="(xx) xxxxx-xxxx">
+        </div>
+
+        <div style="display:grid;grid-template-columns:3fr 1fr;gap:8px;">
+          <div class="form-group">
+            <label class="form-label">Rua</label>
+            <input class="form-input" id="cli-rua" placeholder="Rua">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Número</label>
+            <input class="form-input" id="cli-numero" placeholder="Nº">
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="form-group">
+            <label class="form-label">Bairro</label>
+            <input class="form-input" id="cli-bairro" placeholder="Bairro">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cidade</label>
+            <input class="form-input" id="cli-cidade" placeholder="Cidade">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Complemento <span style="color:var(--text3);font-weight:400;">(opcional)</span></label>
+          <input class="form-input" id="cli-complemento" placeholder="Apto, bloco, referência...">
+        </div>
+      </div>
+
+      <!-- ── RESUMO + PAGAMENTO ── -->
+      <div class="card" style="border-color:rgba(255,107,107,0.3);">
+        <div id="resumo-valores" style="margin-bottom:12px;"></div>
+        <div style="background:rgba(76,175,80,0.1);border:1px solid rgba(76,175,80,0.3);border-radius:var(--radius);padding:12px;text-align:center;margin-bottom:12px;">
+          <div style="font-size:13px;color:var(--text3);margin-bottom:4px;">Forma de pagamento</div>
+          <div style="font-size:18px;font-weight:700;color:var(--green);">PIX</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px;">A Iraides enviará a chave PIX no WhatsApp</div>
+        </div>
+        <button class="btn btn-primary" id="btn-enviar" onclick="enviarPedido()">Enviar Pedido via WhatsApp</button>
+      </div>
+
+      <div id="erro-carrinho" class="login-erro"></div>
+    </div>
+  </main>
+
+  <div id="aviso-futuro" class="aviso-futuro"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    (async function() {
+      await protegerPagina();
+      await ajustarNav();
+
+      var admin = await isAdmin();
+      if (admin) {
+        window.location.href = 'pedidos.html';
+        return;
+      }
+
+      var entrar = document.getElementById('nav-entrar');
+      if (entrar) entrar.onclick = function(e) { e.preventDefault(); fazerLogout(); };
+
+      renderizarCarrinho();
+    })();
+
+    function renderizarCarrinho() {
+      var itens = carrinhoGet();
+      var vazio = document.getElementById('carrinho-vazio');
+      var conteudo = document.getElementById('carrinho-conteudo');
+
+      if (itens.length === 0) {
+        vazio.style.display = 'block';
+        conteudo.style.display = 'none';
+        return;
+      }
+
+      vazio.style.display = 'none';
+      conteudo.style.display = 'block';
+
+      // Itens
+      var html = '';
+      itens.forEach(function(item, i) {
+        html += '<div class="pedido-item">';
+        html += '<div style="flex:1;">';
+        html += '<div style="font-weight:600;">' + item.nome + '</div>';
+        html += '<div style="font-size:12px;color:var(--text3);">Tam ' + item.tamanho + ' &times; ' + item.quantidade + '</div>';
+        html += '</div>';
+        html += '<div style="text-align:right;">';
+        html += '<div style="font-weight:600;">' + formatarCentavos(item.preco * item.quantidade) + '</div>';
+        html += '<button onclick="removerDoCarrinho(' + i + ')" style="background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:2px 0;">Remover</button>';
+        html += '</div>';
+        html += '</div>';
+      });
+      document.getElementById('itens-carrinho').innerHTML = '<label class="form-label">Itens</label>' + html;
+
+      // Resumo
+      var soma = itens.reduce(function(s, i) { return s + i.preco * i.quantidade; }, 0);
+      var total = soma + VALOR_FRETE;
+      document.getElementById('resumo-valores').innerHTML =
+        '<div style="display:flex;justify-content:space-between;font-size:14px;padding:2px 0;"><span>Produtos</span><span>' + formatarCentavos(soma) + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:14px;padding:2px 0;"><span>Frete</span><span>' + formatarCentavos(VALOR_FRETE) + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:17px;font-weight:700;color:var(--accent);padding:8px 0 0;border-top:1px solid var(--border);margin-top:4px;"><span>Total</span><span>' + formatarCentavos(total) + '</span></div>';
+    }
+
+    function removerDoCarrinho(index) {
+      carrinhoRemover(index);
+      renderizarCarrinho();
+    }
+
+    function mostrarErroCart(msg) {
+      var el = document.getElementById('erro-carrinho');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function limparErroCart() {
+      var el = document.getElementById('erro-carrinho');
+      el.textContent = '';
+      el.style.display = 'none';
+    }
+
+    async function enviarPedido() {
+      limparErroCart();
+
+      var nome = document.getElementById('cli-nome').value.trim();
+      var whatsapp = document.getElementById('cli-whatsapp').value.trim();
+      var rua = document.getElementById('cli-rua').value.trim();
+      var numero = document.getElementById('cli-numero').value.trim();
+      var bairro = document.getElementById('cli-bairro').value.trim();
+      var cidade = document.getElementById('cli-cidade').value.trim();
+      var complemento = document.getElementById('cli-complemento').value.trim();
+
+      // Valida tudo antes de tentar salvar
+      var erros = [];
+
+      erros.push(validarTextoPreenchido(nome, 'Nome'));
+      erros.push(validarTextoPreenchido(whatsapp, 'WhatsApp'));
+      erros.push(validarTextoPreenchido(rua, 'Rua'));
+      erros.push(validarTextoPreenchido(numero, 'Número'));
+      erros.push(validarTextoPreenchido(bairro, 'Bairro'));
+      erros.push(validarTextoPreenchido(cidade, 'Cidade'));
+
+      var itens = carrinhoGet();
+      if (itens.length === 0) {
+        erros.push('Carrinho vazio. Adicione itens antes de enviar.');
+      }
+
+      itens.forEach(function(item, i) {
+        erros.push(validarInteiroPositivo(item.quantidade, 'Item ' + (i + 1) + ' — quantidade'));
+        erros.push(validarPrecoCentavos(item.preco, 'Item ' + (i + 1) + ' — preço'));
+      });
+
+      var errosFiltrados = erros.filter(function(e) { return e !== null; });
+      if (errosFiltrados.length > 0) {
+        mostrarErroCart(errosFiltrados.join('\n• '));
+        return;
+      }
+
+      var endereco = rua + ', ' + numero + ', ' + bairro + ', ' + cidade;
+      if (complemento) endereco += ' - ' + complemento;
+
+      var soma = itens.reduce(function(s, i) { return s + i.preco * i.quantidade; }, 0);
+      var total = soma + VALOR_FRETE;
+
+      var btn = document.getElementById('btn-enviar');
+      btn.disabled = true;
+      btn.textContent = 'Enviando…';
+
+      // Monta texto do WhatsApp
+      var textoWhats = 'Olá! Quero fazer um pedido:\n\n';
+      textoWhats += 'Cliente: ' + nome + '\n';
+      textoWhats += 'WhatsApp: ' + whatsapp + '\n';
+      textoWhats += 'Endereço: ' + endereco + '\n\n';
+      textoWhats += 'Itens:\n';
+      itens.forEach(function(item, i) {
+        textoWhats += (i + 1) + '. ' + item.nome + ' - Tam ' + item.tamanho + ' - ' + item.quantidade + 'x ' + formatarCentavos(item.preco) + ' = ' + formatarCentavos(item.preco * item.quantidade) + '\n';
+      });
+      textoWhats += '\nTotal dos produtos: ' + formatarCentavos(soma) + '\n';
+      textoWhats += 'Frete: ' + formatarCentavos(VALOR_FRETE) + '\n';
+      textoWhats += 'Total: ' + formatarCentavos(total) + '\n';
+      textoWhats += 'Pagamento: PIX';
+
+      // Salva no banco
+      var { data: pedido, error: erroPedido } = await supabase
+        .from('pedido')
+        .insert({
+          cliente_nome: nome,
+          cliente_whatsapp: whatsapp,
+          cliente_endereco: endereco,
+          frete_valor: VALOR_FRETE,
+          total: total,
+          status: 'pendente'
+        })
+        .select()
+        .single(); // ← { error }
+
+      if (erroPedido) {
+        btn.disabled = false;
+        btn.textContent = 'Enviar Pedido via WhatsApp';
+        mostrarErroCart('Erro ao salvar pedido: ' + erroPedido.message);
+        return;
+      }
+
+      var itensParaInserir = itens.map(function(i) {
+        return {
+          pedido_id: pedido.id,
+          nome: i.nome,
+          quantidade: i.quantidade,
+          preco_unitario: i.preco,
+          tamanho: i.tamanho
+        };
+      });
+
+      var { error: erroItens } = await supabase.from('pedido_item').insert(itensParaInserir); // ← { error }
+
+      if (erroItens) {
+        btn.disabled = false;
+        btn.textContent = 'Enviar Pedido via WhatsApp';
+        mostrarErroCart('Erro ao salvar itens: ' + erroItens.message);
+        return;
+      }
+
+      // Sucesso
+      btn.textContent = '✓ Pedido enviado!';
+      btn.style.background = 'var(--green)';
+
+      // Abre WhatsApp
+      var url = 'https://wa.me/' + IRAIDES_WHATSAPP + '?text=' + encodeURIComponent(textoWhats);
+      window.open(url, '_blank');
+
+      // Limpa carrinho
+      carrinhoLimpar();
+
+      // Redireciona para pedidos
+      setTimeout(function() {
+        window.location.href = 'pedidos.html';
+      }, 1500);
+    }
+  </script>
+</body>
+</html>

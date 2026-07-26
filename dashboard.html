@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Painel — Ateliê Iraides</title>
+  <link rel="stylesheet" href="css/estilo.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  /* ── PAINEL ── */
+
+  .total-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 24px 20px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .total-label {
+    font-size: 13px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+
+  .total-valor {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+  }
+
+  /* ── CONTADORES ── */
+
+  .contadores {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .contador {
+    flex: 1;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    min-width: 0;
+  }
+
+  .contador:active {
+    transform: scale(0.97);
+  }
+
+  .contador.ativo {
+    border-color: var(--accent);
+    background: rgba(255, 107, 107, 0.05);
+  }
+
+  .contador-num {
+    display: block;
+    font-size: 24px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.2;
+  }
+
+  .contador-label {
+    display: block;
+    font-size: 11px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-top: 2px;
+  }
+
+  .contador.pendente .contador-num { color: var(--yellow); }
+  .contador.pago .contador-num { color: var(--green); }
+  .contador.entregue .contador-num { color: var(--accent); }
+
+  /* ── LISTA ── */
+
+  .dash-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dash-item:last-child {
+    border-bottom: none;
+  }
+
+  .dash-item-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .dash-item-nome {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dash-item-data {
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: 2px;
+  }
+
+  .dash-item-valor {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-left: 12px;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <a href="index.html" class="top-bar-logo">
+        <svg class="logo-icon" width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 4C10 4 8 7 8 9l-3 6 2 2 4-2-1 9h8l-1-9 4 2 2-2-3-6c0-2-2-5-6-5z" stroke="#ff6b6b" stroke-width="1.5" stroke-linejoin="round" fill="none"/>
+        </svg>
+        Ateliê <span>Iraides</span>
+      </a>
+      <button class="nav-toggle" onclick="toggleNav()" aria-label="Menu">☰</button>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="catalogo.html">Catálogo</a>
+        <span class="nav-divider"></span>
+        <span class="nav-label">Protegido</span>
+        <a href="dashboard.html" class="nav-painel ativo">Painel</a>
+        <a href="pedidos.html">Pedidos</a>
+        <a href="carrinho.html" class="nav-carrinho">Carrinho</a>
+        <span class="nav-divider"></span>
+        <a href="#" class="entrar" id="nav-entrar">Sair</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main">
+    <h2>Painel do dia</h2>
+
+    <!-- ── TOTAL ── -->
+    <div class="total-card">
+      <div class="total-label">Total dos pedidos</div>
+      <div class="total-valor" id="total-valor">R$ 0,00</div>
+    </div>
+
+    <!-- ── CONTADORES ── -->
+    <div class="contadores" id="contadores">
+      <button class="contador pendente" data-status="pendente" onclick="filtrarStatus('pendente')">
+        <span class="contador-num" id="num-pendente">0</span>
+        <span class="contador-label">Pendentes</span>
+      </button>
+      <button class="contador pago" data-status="pago" onclick="filtrarStatus('pago')">
+        <span class="contador-num" id="num-pago">0</span>
+        <span class="contador-label">Pagos</span>
+      </button>
+      <button class="contador entregue" data-status="entregue" onclick="filtrarStatus('entregue')">
+        <span class="contador-num" id="num-entregue">0</span>
+        <span class="contador-label">Entregues</span>
+      </button>
+    </div>
+
+    <!-- ── BUSCA ── -->
+    <div class="card" style="padding:12px;">
+      <input class="form-input" id="busca-dash" placeholder="Buscar por nome do cliente..." oninput="filtrarLista()" style="min-height:40px;padding:10px;">
+    </div>
+
+    <!-- ── LISTA ── -->
+    <div id="lista-dash"></div>
+
+    <!-- ── VAZIO ── -->
+    <div id="vazio-dash" style="display:none;text-align:center;padding:40px 20px;">
+      <div style="font-size:40px;margin-bottom:12px;">📊</div>
+      <p style="font-size:17px;font-weight:600;color:#fff;margin-bottom:8px;">Nenhum pedido ainda</p>
+      <p style="font-size:14px;color:var(--text3);margin-bottom:20px;">
+        Os pedidos que os clientes enviarem vão aparecer aqui. Crie o primeiro pedido para ver o painel em ação!
+      </p>
+      <a href="novo-pedido.html" class="btn btn-primary">+ Novo Pedido</a>
+    </div>
+  </main>
+
+  <div id="aviso-futuro" class="aviso-futuro"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    var todosPedidos = [];
+    var filtroStatus = null;
+
+    (async function() {
+      await protegerPagina();
+      await ajustarNav();
+
+      var admin = await isAdmin();
+      if (!admin) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      var entrar = document.getElementById('nav-entrar');
+      if (entrar) entrar.onclick = function(e) { e.preventDefault(); fazerLogout(); };
+
+      await carregarDashboard();
+    })();
+
+    async function carregarDashboard() {
+      var lista = document.getElementById('lista-dash');
+      var vazio = document.getElementById('vazio-dash');
+      lista.innerHTML = '<p style="color:var(--text3);text-align:center;padding:20px;">Carregando…</p>';
+      vazio.style.display = 'none';
+
+      var { data: pedidos, error } = await supabase
+        .from('pedido')
+        .select('*')
+        .order('created_at', { ascending: false }); // ← { error }
+
+      if (error) {
+        lista.innerHTML = '<p style="color:var(--accent);text-align:center;padding:20px;">Erro ao carregar: ' + error.message + '</p>';
+        return;
+      }
+
+      todosPedidos = pedidos || [];
+
+      if (todosPedidos.length === 0) {
+        lista.innerHTML = '';
+        vazio.style.display = 'block';
+        document.getElementById('total-valor').textContent = 'R$ 0,00';
+        return;
+      }
+
+      vazio.style.display = 'none';
+      calcularTotal();
+      calcularContadores();
+      filtrarLista();
+    }
+
+    function calcularTotal() {
+      var soma = todosPedidos.reduce(function(s, p) { return s + (p.total || 0); }, 0);
+      document.getElementById('total-valor').textContent = formatarCentavos(soma);
+    }
+
+    function calcularContadores() {
+      var pendentes = todosPedidos.filter(function(p) { return p.status === 'pendente'; }).length;
+      var pagos = todosPedidos.filter(function(p) { return p.status === 'pago'; }).length;
+      var entregues = todosPedidos.filter(function(p) { return p.status === 'entregue'; }).length;
+
+      document.getElementById('num-pendente').textContent = pendentes;
+      document.getElementById('num-pago').textContent = pagos;
+      document.getElementById('num-entregue').textContent = entregues;
+    }
+
+    function filtrarStatus(status) {
+      if (filtroStatus === status) {
+        filtroStatus = null;
+      } else {
+        filtroStatus = status;
+      }
+
+      document.querySelectorAll('.contador').forEach(function(el) {
+        el.classList.toggle('ativo', el.dataset.status === filtroStatus);
+      });
+
+      filtrarLista();
+    }
+
+    function filtrarLista() {
+      var termo = document.getElementById('busca-dash').value.trim();
+      var lista = document.getElementById('lista-dash');
+
+      var filtrados = todosPedidos;
+
+      if (filtroStatus) {
+        filtrados = filtrados.filter(function(p) { return p.status === filtroStatus; });
+      }
+
+      if (termo) {
+        var normalizado = termo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        filtrados = filtrados.filter(function(p) {
+          var nome = (p.cliente_nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          return nome.includes(normalizado);
+        });
+      }
+
+      if (filtrados.length === 0) {
+        lista.innerHTML = '<p style="color:var(--text3);text-align:center;padding:20px;">Nenhum pedido encontrado.</p>';
+        return;
+      }
+
+      lista.innerHTML = '';
+
+      filtrados.forEach(function(p) {
+        var item = document.createElement('div');
+        item.className = 'dash-item';
+
+        var info = document.createElement('div');
+        info.className = 'dash-item-info';
+
+        var nome = document.createElement('div');
+        nome.className = 'dash-item-nome';
+        nome.textContent = p.cliente_nome;
+        info.appendChild(nome);
+
+        var data = document.createElement('div');
+        data.className = 'dash-item-data';
+
+        var badges = document.createElement('span');
+        badges.className = 'status ' + (p.status || 'pendente');
+        badges.textContent = statusLabel(p.status || 'pendente');
+        data.appendChild(badges);
+        data.innerHTML += ' &middot; ' + formatarData(p.created_at);
+        info.appendChild(data);
+
+        item.appendChild(info);
+
+        var valor = document.createElement('div');
+        valor.className = 'dash-item-valor';
+        valor.textContent = formatarCentavos(p.total || 0);
+        item.appendChild(valor);
+
+        lista.appendChild(item);
+      });
+    }
+  </script>
+</body>
+</html>

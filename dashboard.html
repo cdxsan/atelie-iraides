@@ -155,6 +155,19 @@
   <main class="main">
     <h2>Painel do dia</h2>
 
+    <!-- ── BOTÃO RESUMO DO DIA ── -->
+    <button class="btn btn-primary" id="btn-resumo" onclick="gerarResumo()" style="width:100%;margin-bottom:16px;padding:14px;">
+      📋 Gerar Resumo do Dia
+    </button>
+
+    <!-- ── ÁREA DO RESULTADO ── -->
+    <div id="area-resumo" style="display:none;margin-bottom:16px;">
+      <textarea id="texto-resumo" readonly style="width:100%;min-height:180px;padding:12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:#fff;font-size:14px;line-height:1.5;resize:vertical;font-family:monospace;box-sizing:border-box;"></textarea>
+      <button class="btn" onclick="copiarResumo()" style="width:100%;margin-top:8px;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-weight:700;font-size:14px;cursor:pointer;">
+        📋 Copiar
+      </button>
+    </div>
+
     <!-- ── TOTAL ── -->
     <div class="total-card">
       <div class="total-label">Total dos pedidos</div>
@@ -220,6 +233,67 @@
 
       await carregarDashboard();
     })();
+
+    var resumoCache = '';
+
+    async function gerarResumo() {
+      var btn = document.getElementById('btn-resumo');
+      btn.disabled = true;
+      btn.textContent = '⏳ Gerando…';
+
+      var textoEl = document.getElementById('texto-resumo');
+      var area = document.getElementById('area-resumo');
+
+      try {
+        var sessao = await supabase.auth.getSession();
+        var token = sessao.data.session?.access_token;
+        if (!token) {
+          textoEl.value = 'Erro: você não está logado.';
+          area.style.display = 'block';
+          return;
+        }
+
+        var resposta = await fetch(
+          'https://jfyeowqksutlyljsowuw.supabase.co/functions/v1/resumo-do-dia',
+          { headers: { Authorization: 'Bearer ' + token } }
+        );
+
+        if (!resposta.ok) {
+          textoEl.value = 'Erro ' + resposta.status + ': ' + (await resposta.text());
+          area.style.display = 'block';
+          return;
+        }
+
+        resumoCache = await resposta.text();
+        textoEl.value = resumoCache;
+        area.style.display = 'block';
+        textoEl.scrollTop = 0;
+      } catch (erro) {
+        textoEl.value = 'Erro ao chamar a função: ' + erro.message;
+        area.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📋 Gerar Resumo do Dia';
+      }
+    }
+
+    function copiarResumo() {
+      if (!resumoCache) return;
+      navigator.clipboard.writeText(resumoCache).then(function() {
+        var btn = document.querySelector('#area-resumo .btn');
+        var original = btn.textContent;
+        btn.textContent = '✅ Copiado!';
+        btn.style.background = '#22c55e';
+        setTimeout(function() {
+          btn.textContent = original;
+          btn.style.background = '';
+        }, 2000);
+      }).catch(function() {
+        var textoEl = document.getElementById('texto-resumo');
+        textoEl.select();
+        document.execCommand('copy');
+      });
+    }
 
     async function carregarDashboard() {
       var lista = document.getElementById('lista-dash');

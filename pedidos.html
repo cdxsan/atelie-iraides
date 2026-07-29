@@ -45,6 +45,31 @@
       </div>
     </div>
 
+    <!-- ── EXTRAIR PEDIDO COM IA (só admin) ── -->
+    <div id="extracao-card" style="display:none;">
+      <div class="card" style="border-color:rgba(255,107,107,0.3);margin-bottom:16px;">
+        <label class="form-label" style="font-size:14px;">Extrair pedido do WhatsApp</label>
+        <textarea class="form-input" id="texto-bruto-pedidos" placeholder="Cole aqui o texto da conversa..." oninput="atualizarContadorPedidos()" style="min-height:80px;"></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+          <span id="contador-texto-pedidos" style="font-size:12px;color:var(--text3);">0 / 1500</span>
+          <span id="indicador-confianca-pedidos" style="display:none;font-size:13px;font-weight:600;"></span>
+        </div>
+        <button class="btn btn-primary" id="btn-extrair-pedidos" onclick="extrairPedidoDireto()" style="width:100%;margin-top:8px;">🤖 Extrair Pedido</button>
+        <div id="status-extracao-pedidos" style="display:none;margin-top:8px;font-size:14px;"></div>
+        <div id="erro-extracao-pedidos" style="display:none;margin-top:8px;font-size:14px;color:var(--accent);"></div>
+
+        <div id="resumo-extracao" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <p id="resumo-cliente" style="font-size:15px;font-weight:600;"></p>
+          <p id="resumo-itens" style="font-size:13px;color:var(--text3);margin-top:4px;"></p>
+          <p id="resumo-total" style="font-size:18px;font-weight:700;color:var(--accent);margin-top:8px;"></p>
+          <div id="aviso-confianca-pedidos" style="display:none;margin-top:4px;font-size:13px;"></div>
+          <button class="btn btn-primary" id="btn-salvar-extracao" onclick="salvarExtracao()" style="width:100%;margin-top:8px;">Salvar Pedido</button>
+        </div>
+      </div>
+    </div>
+
+    <input type="hidden" id="confianca-valor-pedidos" value="">
+
     <div id="lista-pedidos">
       <p style="color:var(--text3);text-align:center;padding:20px;">Carregando…</p>
     </div>
@@ -79,11 +104,12 @@
 
       admin = await isAdmin();
 
-      // Admin vê "Pedidos" + busca + botão novo
+      // Admin vê "Pedidos" + busca + botão novo + extração
       // Cliente vê "Meus Pedidos" sem busca nem ações
       if (admin) {
         document.getElementById('titulo-pedidos').textContent = 'Pedidos';
         document.getElementById('busca-admin').style.display = 'block';
+        document.getElementById('extracao-card').style.display = 'block';
         document.getElementById('botao-novo').innerHTML = '<a href="novo-pedido.html" class="btn btn-primary btn-small">+ Novo</a>';
         document.getElementById('vazio-admin-msg').style.display = 'block';
       } else {
@@ -271,6 +297,194 @@
         return;
       }
       mostrarSucesso('Pedido de ' + nome + ' excluído.');
+      await carregarPedidos();
+    }
+
+    // ── EXTRATOR COM IA ──
+
+    var ultimaExtracao = null;
+
+    function atualizarContadorPedidos() {
+      var el = document.getElementById('texto-bruto-pedidos');
+      var cont = document.getElementById('contador-texto-pedidos');
+      var len = el.value.length;
+      cont.textContent = len + ' / 1500';
+      cont.style.color = len > 1500 ? 'var(--accent)' : 'var(--text3)';
+    }
+
+    function mostrarErroExtracaoPedidos(msg) {
+      var el = document.getElementById('erro-extracao-pedidos');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    async function extrairPedidoDireto() {
+      var textoEl = document.getElementById('texto-bruto-pedidos');
+      var texto = textoEl.value.trim();
+
+      if (!texto) {
+        mostrarErroExtracaoPedidos('Cole o texto da conversa do WhatsApp primeiro.');
+        return;
+      }
+
+      if (texto.length > 1500) {
+        mostrarErroExtracaoPedidos('Texto muito longo. Limite de 1500 caracteres.');
+        return;
+      }
+
+      var btn = document.getElementById('btn-extrair-pedidos');
+      var statusEl = document.getElementById('status-extracao-pedidos');
+      var erroEl = document.getElementById('erro-extracao-pedidos');
+
+      erroEl.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Extraindo…';
+      statusEl.style.display = 'block';
+      statusEl.textContent = 'IA est\u00E1 lendo o texto…';
+
+      try {
+        var sessao = await supabase.auth.getSession();
+        var token = sessao.data.session?.access_token;
+        if (!token) throw new Error('Fa\u00E7a login novamente.');
+
+        var resposta = await fetch(
+          'https://jfyeowqksutlyljsowuw.supabase.co/functions/v1/resumo-do-dia',
+          {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ texto: texto })
+          }
+        );
+
+        var dados = await resposta.json();
+
+        if (!resposta.ok) {
+          throw new Error(dados.erro || 'Erro ao extrair pedido.');
+        }
+
+        ultimaExtracao = dados.sugestao;
+
+        // Mostrar resumo
+        var sugestao = dados.sugestao;
+        document.getElementById('resumo-cliente').textContent = sugestao.cliente_nome || '(nome n\u00E3o identificado)';
+        document.getElementById('confianca-valor-pedidos').value = sugestao.confianca || '';
+
+        var textoItens = '';
+        if (sugestao.itens && sugestao.itens.length > 0) {
+          textoItens = sugestao.itens.map(function(i) {
+            return i.quantidade + 'x ' + i.nome + ' (R$ ' + (i.preco_unitario / 100).toFixed(2).replace('.', ',') + ')';
+          }).join('\n');
+        } else {
+          textoItens = '(nenhum item identificado)';
+        }
+        document.getElementById('resumo-itens').textContent = textoItens;
+
+        var total = sugestao.total || 0;
+        document.getElementById('resumo-total').textContent = 'Total: R$ ' + (total / 100).toFixed(2).replace('.', ',');
+
+        // Aviso de confianca
+        var avisoConf = document.getElementById('aviso-confianca-pedidos');
+        var confianca = sugestao.confianca;
+        if (typeof confianca === 'number' && confianca < 50) {
+          avisoConf.style.display = 'block';
+          avisoConf.textContent = 'Confian\u00E7a baixa (' + confianca + '%) \u2014 revise antes de salvar.';
+          avisoConf.style.color = 'var(--accent)';
+        } else if (typeof confianca === 'number' && confianca < 80) {
+          avisoConf.style.display = 'block';
+          avisoConf.textContent = 'Confian\u00E7a: ' + confianca + '% \u2014 d\u00EA uma conferida.';
+          avisoConf.style.color = '#eab308';
+        } else if (typeof confianca === 'number') {
+          avisoConf.style.display = 'block';
+          avisoConf.textContent = 'Confian\u00E7a: ' + confianca + '%';
+          avisoConf.style.color = '#22c55e';
+        }
+
+        document.getElementById('resumo-extracao').style.display = 'block';
+        statusEl.textContent = 'Pedido extra\u00EDdo!';
+        statusEl.style.color = '#22c55e';
+
+        document.getElementById('indicador-confianca-pedidos').style.display = 'none';
+      } catch (erro) {
+        erroEl.style.display = 'block';
+        erroEl.textContent = erro.message || 'Erro ao extrair. Digite os dados manualmente.';
+        statusEl.style.display = 'none';
+        document.getElementById('resumo-extracao').style.display = 'none';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Extrair Pedido';
+      }
+    }
+
+    async function salvarExtracao() {
+      if (!ultimaExtracao) return;
+
+      var btn = document.getElementById('btn-salvar-extracao');
+      btn.disabled = true;
+      btn.textContent = 'Salvando…';
+
+      var sugestao = ultimaExtracao;
+      var frete = sugestao.frete_valor || 0;
+      var soma = 0;
+      if (sugestao.itens) {
+        for (var i = 0; i < sugestao.itens.length; i++) {
+          soma += (sugestao.itens[i].quantidade || 0) * (sugestao.itens[i].preco_unitario || 0);
+        }
+      }
+      var total = frete + soma;
+      var textoBruto = document.getElementById('texto-bruto-pedidos').value.trim() || null;
+      var confianca = parseInt(document.getElementById('confianca-valor-pedidos').value) || null;
+
+      // Inserir pedido
+      var { data: pedido, error: erroPedido } = await supabase
+        .from('pedido')
+        .insert({
+          cliente_nome: sugestao.cliente_nome || 'N\u00E3o identificado',
+          cliente_whatsapp: sugestao.cliente_whatsapp || '',
+          cliente_endereco: sugestao.cliente_endereco || '',
+          frete_valor: frete,
+          total: total,
+          texto_bruto: textoBruto,
+          confianca: confianca
+        })
+        .select()
+        .single();
+
+      if (erroPedido) {
+        btn.disabled = false;
+        btn.textContent = 'Salvar Pedido';
+        mostrarErroExtracaoPedidos('Erro ao salvar: ' + erroPedido.message);
+        return;
+      }
+
+      // Inserir itens
+      if (sugestao.itens && sugestao.itens.length > 0) {
+        var itensParaInserir = [];
+        for (var j = 0; j < sugestao.itens.length; j++) {
+          itensParaInserir.push({
+            pedido_id: pedido.id,
+            nome: sugestao.itens[j].nome || 'Produto',
+            quantidade: sugestao.itens[j].quantidade || 1,
+            preco_unitario: sugestao.itens[j].preco_unitario || 0
+          });
+        }
+
+        var { error: erroItens } = await supabase.from('pedido_item').insert(itensParaInserir);
+
+        if (erroItens) {
+          btn.disabled = false;
+          btn.textContent = 'Salvar Pedido';
+          mostrarErroExtracaoPedidos('Erro ao salvar itens: ' + erroItens.message);
+          return;
+        }
+      }
+
+      // Limpar e recarregar
+      document.getElementById('texto-bruto-pedidos').value = '';
+      document.getElementById('resumo-extracao').style.display = 'none';
+      document.getElementById('status-extracao-pedidos').style.display = 'none';
+      ultimaExtracao = null;
+
+      mostrarSucesso('Pedido salvo com sucesso!');
       await carregarPedidos();
     }
   </script>

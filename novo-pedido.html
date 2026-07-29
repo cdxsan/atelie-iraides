@@ -35,14 +35,26 @@
   <main class="main">
     <h2>Novo Pedido</h2>
 
-    <!-- ── COLAR TEXTO DO WHATSAPP (IA FUTURA) ── -->
+    <!-- ── COLAR TEXTO DO WHATSAPP + IA ── -->
     <div class="card" style="border-color:rgba(255,107,107,0.3);">
       <label class="form-label" style="font-size:14px;">
         Colar texto do WhatsApp
-        <span style="color:var(--text3);font-weight:400;"> (IA extrai no dia 9)</span>
+        <span style="color:var(--text3);font-weight:400;"> (IA extrai automaticamente)</span>
       </label>
-      <textarea class="form-input" id="texto-bruto" placeholder="Cole aqui o texto da conversa do WhatsApp com a cliente..."></textarea>
+      <textarea class="form-input" id="texto-bruto" placeholder="Cole aqui o texto da conversa do WhatsApp com a cliente..." oninput="atualizarContador()"></textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+        <span id="contador-texto" style="font-size:12px;color:var(--text3);">0 / 1500</span>
+        <span id="indicador-confianca" style="display:none;font-size:13px;font-weight:600;"></span>
+      </div>
+      <button class="btn btn-primary" id="btn-extrair" onclick="extrairPedido()" style="width:100%;margin-top:8px;">
+        🤖 Extrair Pedido
+      </button>
+      <div id="status-extracao" style="display:none;margin-top:8px;font-size:14px;"></div>
+      <div id="erro-extracao" style="display:none;margin-top:8px;font-size:14px;color:var(--accent);"></div>
     </div>
+
+    <!-- ── CAMPO OCULTO PRA CONFIANCE ── -->
+    <input type="hidden" id="confianca-valor" value="">
 
     <!-- ── DADOS DO CLIENTE ── -->
     <div class="card">
@@ -180,6 +192,8 @@
       btn.textContent = 'Salvando…';
 
       var textoBruto = document.getElementById('texto-bruto').value.trim() || null;
+      var confiancaRaw = document.getElementById('confianca-valor').value;
+      var confianca = confiancaRaw ? parseInt(confiancaRaw) : null;
 
       var { data: pedido, error: erroPedido } = await supabase
         .from('pedido')
@@ -189,7 +203,8 @@
           cliente_endereco: endereco,
           frete_valor: frete,
           total: total,
-          texto_bruto: textoBruto
+          texto_bruto: textoBruto,
+          confianca: confianca
         })
         .select()
         .single();
@@ -226,6 +241,119 @@
       var el = document.getElementById('erro-pedido');
       el.textContent = msg;
       el.style.display = 'block';
+    }
+
+    // ── EXTRATOR COM IA ──
+
+    function atualizarContador() {
+      var el = document.getElementById('texto-bruto');
+      var cont = document.getElementById('contador-texto');
+      var len = el.value.length;
+      cont.textContent = len + ' / 1500';
+      cont.style.color = len > 1500 ? 'var(--accent)' : 'var(--text3)';
+    }
+
+    function mostrarErroExtracao(msg) {
+      var el = document.getElementById('erro-extracao');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    async function extrairPedido() {
+      var textoEl = document.getElementById('texto-bruto');
+      var texto = textoEl.value.trim();
+
+      if (!texto) {
+        mostrarErroExtracao('Cole o texto da conversa do WhatsApp primeiro.');
+        return;
+      }
+
+      if (texto.length > 1500) {
+        mostrarErroExtracao('Texto muito longo. Limite de 1500 caracteres.');
+        return;
+      }
+
+      var btn = document.getElementById('btn-extrair');
+      var statusEl = document.getElementById('status-extracao');
+      var erroEl = document.getElementById('erro-extracao');
+
+      erroEl.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = '🤖 Extraindo…';
+      statusEl.style.display = 'block';
+      statusEl.textContent = '⏳ IA est\u00E1 lendo o texto…';
+
+      try {
+        var sessao = await supabase.auth.getSession();
+        var token = sessao.data.session?.access_token;
+        if (!token) throw new Error('Fa\u00E7a login novamente.');
+
+        var resposta = await fetch(
+          'https://jfyeowqksutlyljsowuw.supabase.co/functions/v1/resumo-do-dia',
+          {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ texto: texto })
+          }
+        );
+
+        var dados = await resposta.json();
+
+        if (!resposta.ok) {
+          throw new Error(dados.erro || 'Erro ao extrair pedido.');
+        }
+
+        var sugestao = dados.sugestao;
+
+        // Preencher dados do cliente
+        document.getElementById('cliente-nome').value = sugestao.cliente_nome || '';
+        document.getElementById('cliente-whatsapp').value = sugestao.cliente_whatsapp || '';
+        document.getElementById('cliente-endereco').value = sugestao.cliente_endereco || '';
+        document.getElementById('frete-valor').value = sugestao.frete_valor || '';
+
+        // Guardar confianca
+        document.getElementById('confianca-valor').value = sugestao.confianca || '';
+
+        // Mostrar indicador de confianca
+        var confEl = document.getElementById('indicador-confianca');
+        var confianca = sugestao.confianca;
+        if (typeof confianca === 'number') {
+          confEl.style.display = 'inline';
+          if (confianca >= 80) {
+            confEl.textContent = 'Confian\u00E7a: ' + confianca + '%';
+            confEl.style.color = '#22c55e';
+          } else if (confianca >= 50) {
+            confEl.textContent = 'Confian\u00E7a: ' + confianca + '% \u2014 revise';
+            confEl.style.color = '#eab308';
+          } else {
+            confEl.textContent = 'Confian\u00E7a BAIXA: ' + confianca + '% \u2014 revise com cuidado';
+            confEl.style.color = 'var(--accent)';
+          }
+        }
+
+        // Limpar e preencher itens
+        var lista = document.getElementById('itens-lista');
+        lista.innerHTML = '';
+        if (sugestao.itens && sugestao.itens.length > 0) {
+          for (var i = 0; i < sugestao.itens.length; i++) {
+            adicionarItem(sugestao.itens[i].nome, sugestao.itens[i].quantidade, sugestao.itens[i].preco_unitario);
+          }
+        } else {
+          adicionarItem();
+        }
+
+        recalcularPrevia();
+
+        statusEl.textContent = 'Pedido extra\u00EDdo! Revise e salve.';
+        statusEl.style.color = '#22c55e';
+      } catch (erro) {
+        erroEl.style.display = 'block';
+        erroEl.textContent = erro.message || 'Erro ao extrair. Digite os dados manualmente.';
+        statusEl.style.display = 'none';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Extrair Pedido';
+      }
     }
   </script>
 </body>

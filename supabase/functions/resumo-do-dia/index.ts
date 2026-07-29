@@ -1,107 +1,152 @@
-// ──────────────────────────────────────────────────────────
-//  EDGE FUNCTION: resumo-do-dia
-// ──────────────────────────────────────────────────────────
-//  O que faz:
-//    Puxa os pedidos de hoje do banco e monta um texto
-//    resumido, pronto para Iraides colar no WhatsApp.
-//
-//  Segurança (3 regras que você não abre mão):
-//
-//    Regra 1 — verify_jwt
-//      No painel do Supabase, ao criar a função, ative
-//      "JWT verification". Assim, se um deslogado tentar
-//      chamar a função, o próprio Supabase barra antes
-//      de executar qualquer código.
-//
-//    Regra 2 — RLS respeita o dono do dado
-//      O cliente Supabase dentro da função é criado com
-//      o TOKEN de quem chamou (não com a chave service_role).
-//      Isso faz o Row Level Security do banco funcionar:
-//        • Admin (Iraides) → vê TODOS os pedidos de todos
-//        • Cliente comum    → vê só os próprios pedidos
-//      Quem decide é o banco, não o código.
-//
-//    Regra 3 — Nenhuma chave nova no navegador
-//      TUDO roda no servidor do Supabase. O navegador
-//      só vê a URL da função. As chaves (SUPABASE_URL,
-//      SUPABASE_ANON_KEY) são injetadas automaticamente
-//      pelo Supabase como variável de ambiente — não
-//      aparecem em lugar nenhum do código do front.
-// ──────────────────────────────────────────────────────────
+var ORIGEM_PERMITIDA = "*";
+const TEXTO_MAXIMO = 1500;
+const LIMITE_DIARIO = 30;
+const TIMEOUT_IA_MS = 30_000;
 
-// ─── Importações ─────────────────────────────────────────
-// Edge Function roda em Deno, não em Node.js.
-// As importações são por URL, não por npm install.
-// O Supabase já entende isso nativamente.
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+const PROMPT_SISTEMA = `Você é um assistente de uma loja de vestidos.
+Extraia as informações do pedido da conversa de WhatsApp abaixo.
 
-// ─── Utilitários ─────────────────────────────────────────
+Responda APENAS com um JSON neste formato exato, sem explicações adicionais:
 
-function responderErro(status: number, mensagem: string): Response {
-  return new Response(mensagem, {
-    status,
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Access-Control-Allow-Origin": "*",
-    },
+{
+  "cliente_nome": "Nome completo do cliente",
+  "cliente_whatsapp": "Número do WhatsApp com DDD e país",
+  "cliente_endereco": "Endereço completo de entrega",
+  "frete_valor": 1200,
+  "total": 10100,
+  "itens": [
+    { "nome": "Nome do produto", "quantidade": 1, "preco_unitario": 8900 }
+  ],
+  "confianca": 95
+}
+
+REGRAS IMPORTANTES:
+- Preços sempre em centavos: R$ 89,00 vira 8900, R$ 120,00 vira 12000
+- Quantidade sempre número inteiro
+- Se um campo nao estiver claro no texto, use null
+- confianca: 100 se todos os dados estao explicitos; 70 se alguns foram inferidos; 50 ou menos se muitos estao ambiguos
+- frete_valor: se nao foi mencionado, use 1200 (padrao)
+- total = (quantidade * preco_unitario de cada item) + frete_valor
+- cliente_whatsapp: so numeros com DDD e pais (ex: 5562999999999)`;
+
+function headersCORS() {
+  return {
+    "Access-Control-Allow-Origin": ORIGEM_PERMITIDA,
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
+  };
+}
+
+function respostaJSON(dados, status) {
+  if (status === undefined) status = 200;
+  return new Response(JSON.stringify(dados), {
+    status: status,
+    headers: Object.assign({ "Content-Type": "application/json; charset=utf-8" }, headersCORS()),
   });
 }
 
-function formatarPreco(centavos: number): string {
-  // Converte de centavos (8900) para reais (R$ 89,00)
+function respostaTexto(texto, status) {
+  if (status === undefined) status = 200;
+  return new Response(texto, {
+    status: status,
+    headers: Object.assign({ "Content-Type": "text/plain; charset=utf-8" }, headersCORS()),
+  });
+}
+
+function formatarPreco(centavos) {
   return "R$ " + (centavos / 100).toFixed(2).replace(".", ",");
 }
 
-// ─── Monta o texto do resumo ────────────────────────────
+function getSupabaseUrl() {
+  return Deno.env.get("SUPABASE_URL") || "";
+}
 
-function montarResumo(pedidos: any[]): string {
-  if (!pedidos || pedidos.length === 0) {
-    return "📋 Nenhum pedido hoje.";
+function getAnonKey() {
+  return Deno.env.get("SUPABASE_ANON_KEY") || "";
+}
+
+function cabecalhos(authHeader) {
+  return {
+    "Authorization": authHeader,
+    "apikey": getAnonKey(),
+    "Content-Type": "application/json",
+  };
+}
+
+async function consultarAPI(rota, authHeader) {
+  const url = getSupabaseUrl() + rota;
+  const resp = await fetch(url, { headers: cabecalhos(authHeader) });
+  if (!resp.ok) return null;
+  return resp.json();
+}
+
+async function consultarRPCSemArg(nome, authHeader) {
+  const url = getSupabaseUrl() + "/rest/v1/rpc/" + nome;
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: cabecalhos(authHeader),
+    body: "{}",
+  });
+  if (!resp.ok) return null;
+  const texto = await resp.text();
+  if (texto === "true") return true;
+  if (texto === "false") return false;
+  try { return JSON.parse(texto); } catch { return null; }
+}
+
+async function consultarRPCComArg(nome, args, authHeader) {
+  const url = getSupabaseUrl() + "/rest/v1/rpc/" + nome;
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: cabecalhos(authHeader),
+    body: JSON.stringify(args),
+  });
+  if (!resp.ok) return null;
+  const texto = await resp.text();
+  try { return JSON.parse(texto); } catch { return texto; }
+}
+
+async function handleResumo(authHeader) {
+  const hoje = new Date().toISOString().substring(0, 10);
+
+  const url = getSupabaseUrl()
+    + "/rest/v1/pedido?select=*,pedido_item(id,nome,quantidade,preco_unitario)"
+    + "&created_at=gte." + hoje
+    + "&order=created_at.desc";
+
+  const resp = await fetch(url, { headers: cabecalhos(authHeader) });
+  if (!resp.ok) {
+    return respostaTexto("Erro ao consultar o banco.", 500);
   }
 
-  // Agrupa os pedidos por status
-  const grupos: Record<string, any[]> = {
-    pendente: [],
-    pago: [],
-    entregue: [],
-  };
+  const pedidos = await resp.json();
+
+  if (!pedidos || pedidos.length === 0) {
+    return respostaTexto("📋 Nenhum pedido hoje.");
+  }
+
+  const grupos = { pendente: [], pago: [], entregue: [] };
   let totalGeral = 0;
 
-  for (const pedido of pedidos) {
-    const status = pedido.status;
-    if (grupos[status]) {
-      grupos[status].push(pedido);
-    }
-    totalGeral += pedido.total;
+  for (const p of pedidos) {
+    if (grupos[p.status]) grupos[p.status].push(p);
+    totalGeral += p.total;
   }
 
-  // Data de hoje no formato brasileiro
   const agora = new Date();
-  const dia = String(agora.getDate()).padStart(2, "0");
-  const mes = String(agora.getMonth() + 1).padStart(2, "0");
-  const ano = agora.getFullYear();
-  const dataFormatada = `${dia}/${mes}/${ano}`;
+  const dataFmt =
+    String(agora.getDate()).padStart(2, "0") + "/" +
+    String(agora.getMonth() + 1).padStart(2, "0") + "/" +
+    agora.getFullYear();
 
-  // Monta o texto linha a linha
-  const linhas: string[] = [];
+  const linhas = [
+    "📋 RESUMO DO DIA — " + dataFmt,
+    "",
+    "💰 Total geral: " + formatarPreco(totalGeral),
+    "📦 Pendentes: " + grupos.pendente.length + "  |  Pagos: " + grupos.pago.length + "  |  Entregues: " + grupos.entregue.length,
+    "",
+  ];
 
-  // ── Cabeçalho ──
-  linhas.push(`📋 RESUMO DO DIA — ${dataFormatada}`);
-  linhas.push("");
-
-  // ── Totais ──
-  const qtdPendentes = grupos.pendente.length;
-  const qtdPagos = grupos.pago.length;
-  const qtdEntregues = grupos.entregue.length;
-  linhas.push(`💰 Total geral: ${formatarPreco(totalGeral)}`);
-  linhas.push(
-    `📦 Pendentes: ${qtdPendentes}  |  Pagos: ${qtdPagos}  |  Entregues: ${qtdEntregues}`
-  );
-  linhas.push("");
-
-  // ── Lista por status ──
-  // Só mostra a seção se tiver pelo menos 1 pedido naquele status
   const secoes = [
     { chave: "pendente", label: "PENDENTES", emoji: "⏳" },
     { chave: "pago", label: "PAGOS", emoji: "✅" },
@@ -111,148 +156,173 @@ function montarResumo(pedidos: any[]): string {
   for (const secao of secoes) {
     const lista = grupos[secao.chave];
     if (lista.length === 0) continue;
-
-    linhas.push(`━━━ ${secao.label} ━━━`);
+    linhas.push("━━━ " + secao.label + " ━━━");
     for (const pedido of lista) {
-      const qtdItens = pedido.pedido_item?.length ?? 0;
-      const plural = qtdItens === 1 ? "item" : "itens";
-      const infoItens = qtdItens > 0 ? ` — ${qtdItens} ${plural}` : "";
-      linhas.push(
-        `${secao.emoji} ${pedido.cliente_nome} — ${formatarPreco(pedido.total)}${infoItens}`
-      );
+      const qtd = pedido.pedido_item ? pedido.pedido_item.length : 0;
+      var info = "";
+      if (qtd > 0) {
+        info = " — " + qtd + " " + (qtd === 1 ? "item" : "itens");
+      }
+      linhas.push(secao.emoji + " " + pedido.cliente_nome + " — " + formatarPreco(pedido.total) + info);
     }
     linhas.push("");
   }
 
-  return linhas.join("\n");
+  return respostaTexto(linhas.join("\n"));
 }
 
-// ─── Função principal ────────────────────────────────────
-// O Supabase chama esta função quando alguém faz uma
-// requisição HTTP para /functions/v1/resumo-do-dia
-// ─────────────────────────────────────────────────────────
-
-serve(async (req: Request): Promise<Response> => {
-  // ── CORS: responder requisições de preflight ──
-  // O navegador envia um OPTIONS antes do GET/POST real
-  // para perguntar se pode chamar a função.
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Authorization, Content-Type",
-      },
-    });
+async function handleExtrair(req, userId, authHeader) {
+  var admin = await consultarRPCSemArg("is_admin", authHeader);
+  if (!admin) {
+    return respostaJSON({ erro: "So Iraides pode extrair pedidos com IA." }, 403);
   }
 
-  // ============================================================
-  //  REGRA 1: VERIFICAR AUTENTICAÇÃO
-  // ============================================================
-  // O verify_jwt (ativado no painel do Supabase) já bloqueia
-  // requisições sem token antes de entrar na função. Mesmo assim
-  // a gente verifica de novo aqui — segurança em camadas.
-  //
-  // O token JWT vem no cabeçalho Authorization.
-  // Exemplo: "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."
-  // ============================================================
+  var chamadas = await consultarRPCComArg("contar_chamada", {
+    p_user_id: userId,
+    p_funcao: "extrair_pedido",
+  }, authHeader);
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return responderErro(
-      401,
-      "Erro: você precisa estar logado para acessar esta função."
+  if (chamadas === null) {
+    return respostaJSON({ erro: "Erro interno ao verificar limite." }, 500);
+  }
+
+  if (typeof chamadas === "number" && chamadas > LIMITE_DIARIO) {
+    return respostaJSON({
+      erro: "Voce atingiu o limite de " + LIMITE_DIARIO + " extracoes hoje. Volte amanha.",
+    }, 429);
+  }
+
+  var body;
+  try {
+    body = await req.json();
+  } catch (_) {
+    return respostaJSON({ erro: "Envie um JSON com o campo 'texto'." }, 400);
+  }
+
+  var texto = (body.texto || "").trim();
+
+  if (!texto) {
+    return respostaJSON({ erro: "O campo 'texto' nao pode ficar vazio." }, 400);
+  }
+
+  if (texto.length > TEXTO_MAXIMO) {
+    return respostaJSON({
+      erro: "Texto muito longo. Maximo de " + TEXTO_MAXIMO + " caracteres.",
+    }, 413);
+  }
+
+  var apiKey = Deno.env.get("CEREBRAS_API_KEY");
+  if (!apiKey) {
+    console.error("CEREBRAS_API_KEY nao configurada");
+    return respostaJSON({
+      erro: "Chave da IA nao configurada. Adicione CEREBRAS_API_KEY nos Secrets do Supabase.",
+    }, 500);
+  }
+
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, TIMEOUT_IA_MS);
+
+  try {
+    var respostaIA = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-oss-120b",
+          messages: [
+            { role: "system", content: PROMPT_SISTEMA },
+            { role: "user", content: texto },
+          ],
+          temperature: 0.1,
+          response_format: { type: "json_object" },
+        }),
+        signal: controller.signal,
+      }
     );
-  }
 
-  // ============================================================
-  //  REGRA 2: CRIAR CLIENTE SUPABASE COM O TOKEN DO USUÁRIO
-  // ============================================================
-  // Em vez de usar a chave service_role (que ignora o RLS),
-  // a gente passa o token de quem chamou. Assim o Supabase
-  // sabe QUEM está perguntando e aplica as regras certinhas:
-  //
-  //   Admin (Iraides) → policy de admin → enxerga TUDO
-  //   Cliente comum   → policy de dono  → só seus pedidos
-  //
-  // SUPABASE_URL e SUPABASE_ANON_KEY são variáveis de ambiente
-  // injetadas automaticamente pelo Supabase na Edge Function.
-  // Nenhuma chave nova aparece no código do navegador (Regra 3).
-  // ============================================================
+    clearTimeout(timer);
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-    {
-      global: {
-        headers: { Authorization: authHeader },
-      },
+    if (!respostaIA.ok) {
+      console.error("Cerebras HTTP", respostaIA.status);
+      return respostaJSON({
+        erro: "A IA nao conseguiu processar o texto agora. Tente novamente.",
+      }, 502);
     }
-  );
 
-  // ============================================================
-  //  IDENTIFICAR O USUÁRIO
-  // ============================================================
-  // O Supabase decodifica o token JWT e devolve os dados do
-  // usuário. Se o token venceu ou é inválido, barra aqui.
-  // ============================================================
+    var dadosIA = await respostaIA.json();
+    var conteudo = dadosIA.choices?.[0]?.message?.content;
 
-  const { data: usuario, error: erroUsuario } = await supabase.auth.getUser();
+    if (!conteudo) {
+      console.error("Cerebras: resposta sem content");
+      return respostaJSON({ erro: "Resposta vazia da IA." }, 502);
+    }
 
-  if (erroUsuario || !usuario?.user) {
-    console.error("Erro ao validar token:", erroUsuario?.message);
-    return responderErro(
-      401,
-      "Erro: token inválido ou expirado. Faça login novamente."
-    );
+    var sugestao;
+    try {
+      sugestao = JSON.parse(conteudo);
+    } catch (_) {
+      console.error("Cerebras: JSON invalido");
+      return respostaJSON({ erro: "Formato inesperado da IA." }, 502);
+    }
+
+    if (!sugestao.cliente_nome || String(sugestao.cliente_nome).trim() === "") {
+      var confAtual = typeof sugestao.confianca === "number" ? sugestao.confianca : 100;
+      sugestao.confianca = Math.min(confAtual, 20);
+    }
+
+    if (typeof sugestao.confianca !== "number") {
+      sugestao.confianca = 50;
+    }
+
+    sugestao.texto_bruto = texto;
+
+    return respostaJSON({ sugestao: sugestao });
+  } catch (erro) {
+    clearTimeout(timer);
+    if (erro instanceof Error && erro.name === "AbortError") {
+      return respostaJSON({ erro: "A IA demorou muito. Tente com um texto mais curto." }, 504);
+    }
+    console.error("Erro extracao:", erro instanceof Error ? erro.message : erro);
+    return respostaJSON({ erro: "Erro inesperado. Tente novamente." }, 500);
+  }
+}
+
+Deno.serve(async function(req) {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: headersCORS() });
   }
 
-  // ============================================================
-  //  BUSCAR PEDIDOS DE HOJE
-  // ============================================================
-  // Usa .select com o token do usuário logado. O RLS do banco
-  // filtra automaticamente baseado em quem está perguntando:
-  //
-  //   - Admin  → todas as linhas (policy "Admin ver todos")
-  //   - Cliente → só as linhas com user_id = auth.uid()
-  //
-  // O .gte("created_at", hoje) filtra apenas pedidos de hoje.
-  // "hoje" é meia-noite UTC. Se sentir falta de pedidos do fim
-  // da noite (após 21h no Brasil), a gente ajusta o fuso depois.
-  //
-  // O select "pedido_item(...)" traz os itens junto com o pedido
-  // (útil para o resumo mostrar quantos itens cada pedido tem).
-  // ============================================================
-
-  const hoje = new Date().toISOString().substring(0, 10);
-
-  const { data: pedidos, error: erroPedidos } = await supabase
-    .from("pedido")
-    .select("*, pedido_item(id, nome, quantidade, preco_unitario)")
-    .gte("created_at", hoje)
-    .order("created_at", { ascending: false });
-
-  if (erroPedidos) {
-    console.error("Erro ao buscar pedidos:", erroPedidos);
-    return responderErro(
-      500,
-      "Erro ao consultar o banco de dados. Tente novamente."
-    );
+  var authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return respostaJSON({ erro: "Voce precisa estar logado." }, 401);
   }
 
-  // ============================================================
-  //  MONTAR E DEVOLVER O RESUMO
-  // ============================================================
-  // A resposta é texto puro (não JSON) porque o destino é
-  // colar no WhatsApp.
-  // ============================================================
-
-  const texto = montarResumo(pedidos ?? []);
-
-  return new Response(texto, {
+  var urlUser = getSupabaseUrl() + "/auth/v1/user";
+  var respUser = await fetch(urlUser, {
     headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Access-Control-Allow-Origin": "*",
+      "Authorization": authHeader,
+      "apikey": getAnonKey(),
     },
   });
+
+  if (!respUser.ok) {
+    return respostaJSON({ erro: "Token invalido ou expirado." }, 401);
+  }
+
+  var usuario = await respUser.json();
+  var userId = usuario.id;
+
+  if (req.method === "GET") {
+    return handleResumo(authHeader);
+  }
+
+  if (req.method === "POST") {
+    return handleExtrair(req, userId, authHeader);
+  }
+
+  return respostaJSON({ erro: "Metodo nao permitido." }, 405);
 });

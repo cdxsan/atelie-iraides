@@ -338,5 +338,7 @@ async function protegerPagina() {
     window.location.href = 'login.html?redirect=' + window.location.pathname;
     return;
   }
+  var el = document.getElementById('conteudo-protegido');
+  if (el) el.style.display = 'block';
   _protegendo = false;
 }

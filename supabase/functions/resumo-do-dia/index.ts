@@ -1,4 +1,4 @@
-var ORIGEM_PERMITIDA = "*";
+var ORIGEM_PERMITIDA = "https://atelie-iraides.tibiamaill16.workers.dev";
 const TEXTO_MAXIMO = 1500;
 const LIMITE_DIARIO = 30;
 const TIMEOUT_IA_MS = 30_000;

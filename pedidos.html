@@ -199,9 +199,16 @@
           itens.forEach(function(item) {
             var linha = document.createElement('div');
             linha.style.cssText = 'display:flex;justify-content:space-between;font-size:13px;padding:2px 0;';
-            linha.innerHTML =
-              '<span>' + item.nome + ' <span style="color:var(--text3);">Tam ' + (item.tamanho || '-') + ' x' + item.quantidade + '</span></span>' +
-              '<span>' + formatarCentavos(item.preco_unitario * item.quantidade) + '</span>';
+            var spanEsq = document.createElement('span');
+            spanEsq.textContent = item.nome;
+            var spanInfo = document.createElement('span');
+            spanInfo.style.cssText = 'color:var(--text3);';
+            spanInfo.textContent = 'Tam ' + (item.tamanho || '-') + ' x' + item.quantidade;
+            spanEsq.appendChild(spanInfo);
+            var spanDir = document.createElement('span');
+            spanDir.textContent = formatarCentavos(item.preco_unitario * item.quantidade);
+            linha.appendChild(spanEsq);
+            linha.appendChild(spanDir);
             itensDiv.appendChild(linha);
           });
           card.appendChild(itensDiv);

@@ -137,14 +137,18 @@
       }
     })();
 
+    function escaparAtributo(valor) {
+      return String(valor).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    }
+
     function adicionarItem(nome, qtd, preco) {
       var lista = document.getElementById('itens-lista');
       var div = document.createElement('div');
       div.className = 'pedido-item';
       div.innerHTML =
-        '<input class="form-input item-nome" placeholder="Nome do produto" style="flex:2;margin-right:6px;min-height:40px;padding:8px;" value="' + (nome || '') + '">' +
-        '<input class="form-input item-qtd" type="number" placeholder="Qtd" style="width:56px;margin-right:6px;min-height:40px;padding:8px;" value="' + (qtd || 1) + '">' +
-        '<input class="form-input item-preco" type="number" placeholder="Centavos" style="flex:1;margin-right:6px;min-height:40px;padding:8px;" value="' + (preco || '') + '">' +
+        '<input class="form-input item-nome" placeholder="Nome do produto" style="flex:2;margin-right:6px;min-height:40px;padding:8px;" value="' + escaparAtributo(nome || '') + '">' +
+        '<input class="form-input item-qtd" type="number" placeholder="Qtd" style="width:56px;margin-right:6px;min-height:40px;padding:8px;" value="' + escaparAtributo(qtd || 1) + '">' +
+        '<input class="form-input item-preco" type="number" placeholder="Centavos" style="flex:1;margin-right:6px;min-height:40px;padding:8px;" value="' + escaparAtributo(preco || '') + '">' +
         '<button class="btn btn-small" onclick="removerItem(this)" style="width:36px;padding:0;min-height:36px;background:transparent;color:var(--accent);font-size:18px;border:none;cursor:pointer;">✕</button>';
       lista.appendChild(div);
 

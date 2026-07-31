@@ -100,6 +100,12 @@
       var entrar = document.getElementById('nav-entrar');
       if (entrar) entrar.onclick = function(e) { e.preventDefault(); fazerLogout(); };
 
+      var admin = await isAdmin();
+      if (!admin) {
+        window.location.href = 'pedidos.html';
+        return;
+      }
+
       var params = new URLSearchParams(window.location.search);
       pedidoId = params.get('id');
 
